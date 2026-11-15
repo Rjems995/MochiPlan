@@ -79,6 +79,7 @@ test("custom palettes, full screen, all views and backups work", async ({
   await page.getByRole("button", { name: "List", exact: true }).click();
   await expect(page.locator(".canvas-inner .list-activity")).toHaveCount(15);
   await page.getByRole("button", { name: "Exit full screen editor" }).click();
+  await page.getByRole("button", { name: "Back to my schedules" }).click();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const downloading = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download a full backup" }).click();

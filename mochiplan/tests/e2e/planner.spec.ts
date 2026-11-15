@@ -8,6 +8,10 @@ test("create, edit, overlap, undo, duplicate and persist planners", async ({
   await expect(
     page.getByRole("heading", { name: "Good weeks start with a little plan" }),
   ).toBeVisible();
+  await expect(page.locator(".sidebar")).toHaveCount(0);
+  await expect(page.locator(".main-area")).toHaveCSS("margin-left", "0px");
+  await page.getByRole("button", { name: "Back to my schedules" }).click();
+  await expect(page.locator(".sidebar")).toBeVisible();
   await page
     .getByRole("button", { name: "Create a schedule", exact: true })
     .click();
@@ -65,10 +69,7 @@ test("create, edit, overlap, undo, duplicate and persist planners", async ({
     page.getByRole("combobox", { name: "Active planner" }),
   ).toHaveValue(/.+/);
   await expect(page.locator(".canvas-inner .schedule-block")).toHaveCount(2);
-  await page
-    .getByRole("button", { name: "My schedules", exact: false })
-    .first()
-    .click();
+  await page.getByRole("button", { name: "Back to my schedules" }).click();
   await page
     .getByRole("button", { name: "Duplicate QA study week", exact: true })
     .click();
@@ -99,6 +100,7 @@ test("theme, stickers, template favorites and tasks work", async ({ page }) => {
   await page.getByRole("button", { name: "Stickers", exact: true }).click();
   await page.getByRole("button", { name: "Add 🍓 sticker" }).click();
   await expect(page.locator(".canvas-inner .canvas-sticker")).toHaveCount(1);
+  await page.getByRole("button", { name: "Back to my schedules" }).click();
   await page
     .getByRole("button", { name: "Template garden", exact: true })
     .click();
@@ -115,6 +117,7 @@ test("theme, stickers, template favorites and tasks work", async ({ page }) => {
   await expect(page.locator(".canvas-inner .paper-heading h2")).toHaveText(
     "A moment of matcha",
   );
+  await page.getByRole("button", { name: "Back to my schedules" }).click();
   await page
     .getByRole("button", { name: "Little to-dos", exact: true })
     .click();

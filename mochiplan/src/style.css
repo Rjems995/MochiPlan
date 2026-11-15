@@ -423,6 +423,22 @@ button svg {
   display: flex;
   flex-direction: column;
 }
+.editing-schedule .main-area {
+  margin-left: 0;
+  width: 100%;
+}
+.editor-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 6px;
+  padding: 6px 0;
+  color: var(--workspace-accent, #b96d86);
+  font-size: 11px;
+}
+.editor-back:hover {
+  color: var(--ink);
+}
 .topbar {
   height: 65px;
   padding: 0 31px;
@@ -3416,6 +3432,9 @@ button svg {
   }
   .breadcrumb > span,
   .breadcrumb > svg {
+    display: none;
+  }
+  .editing-schedule .breadcrumb > strong {
     display: none;
   }
   .topbar-right {
