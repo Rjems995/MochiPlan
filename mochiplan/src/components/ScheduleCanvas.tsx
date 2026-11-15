@@ -38,6 +38,8 @@ type Props = {
   selectedSticker: string | null;
   onSelectSticker: (id: string) => void;
   interactive?: boolean;
+  displayScale?: number;
+  hourHeight?: number;
 };
 function Block({
   entry,
@@ -50,6 +52,8 @@ function Block({
   onResize,
   interactive,
   conflict,
+  displayScale,
+  hourHeight,
 }: {
   entry: Entry;
   startHour: number;
@@ -61,12 +65,14 @@ function Block({
   onResize: (end: number) => void;
   interactive: boolean;
   conflict: boolean;
+  displayScale: number;
+  hourHeight: number;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id: entry.id, data: { entry }, disabled: !interactive });
   const resize = useRef<{ y: number; end: number } | null>(null);
   const block = useRef<HTMLDivElement | null>(null);
-  const height = ((entry.end - entry.start) / 60) * HOUR_HEIGHT;
+  const height = ((entry.end - entry.start) / 60) * hourHeight;
   return (
     <div
       ref={(node) => {
@@ -77,14 +83,14 @@ function Block({
       style={
         {
           background: entry.color,
-          top: ((entry.start - startHour * 60) / 60) * HOUR_HEIGHT,
+          top: ((entry.start - startHour * 60) / 60) * hourHeight,
           height,
           left: `calc(${(lanes.lane / lanes.count) * 100}% + 5px)`,
           width: `calc(${100 / lanes.count}% - 10px)`,
           borderRadius: radius,
           fontSize,
           transform: transform
-            ? `translate3d(${transform.x}px,${transform.y}px,0)`
+            ? `translate3d(${transform.x / displayScale}px,${transform.y / displayScale}px,0)`
             : undefined,
           zIndex: isDragging ? 50 : 2,
         } as CSSProperties
@@ -135,21 +141,25 @@ function Block({
             if (!resize.current) return;
             const minutes =
               Math.round(
-                (((ev.clientY - resize.current.y) / HOUR_HEIGHT) * 60) / 15,
+                (((ev.clientY - resize.current.y) / displayScale / hourHeight) *
+                  60) /
+                  15,
               ) * 15;
             const end = Math.max(
               entry.start + 15,
               Math.min(1440, resize.current.end + minutes),
             );
             if (block.current)
-              block.current.style.height = `${((end - entry.start) / 60) * HOUR_HEIGHT}px`;
+              block.current.style.height = `${((end - entry.start) / 60) * hourHeight}px`;
           }}
           onPointerUp={(ev) => {
             if (!resize.current) return;
             const end =
               resize.current.end +
               Math.round(
-                (((ev.clientY - resize.current.y) / HOUR_HEIGHT) * 60) / 15,
+                (((ev.clientY - resize.current.y) / displayScale / hourHeight) *
+                  60) /
+                  15,
               ) *
                 15;
             resize.current = null;
@@ -173,6 +183,8 @@ function Column({
   interactive,
   startHour,
   endHour,
+  displayScale,
+  hourHeight,
 }: {
   day: number;
   children: React.ReactNode;
@@ -180,6 +192,8 @@ function Column({
   interactive: boolean;
   startHour: number;
   endHour: number;
+  displayScale: number;
+  hourHeight: number;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${day}`,
@@ -190,7 +204,10 @@ function Column({
     <div
       ref={setNodeRef}
       className={`day-column ${isOver ? "drop-active" : ""}`}
-      style={{ height: (endHour - startHour) * HOUR_HEIGHT }}
+      style={{
+        height: (endHour - startHour) * hourHeight,
+        backgroundSize: `100% ${hourHeight}px`,
+      }}
       onDoubleClick={(ev) => {
         if (ev.target !== ev.currentTarget || !interactive) return;
         const rect = ev.currentTarget.getBoundingClientRect();
@@ -200,7 +217,10 @@ function Column({
             endHour * 60 - 60,
             Math.max(
               startHour * 60,
-              Math.floor(((ev.clientY - rect.top) / HOUR_HEIGHT) * 4) * 15 +
+              Math.floor(
+                ((ev.clientY - rect.top) / displayScale / hourHeight) * 4,
+              ) *
+                15 +
                 startHour * 60,
             ),
           ),
@@ -320,6 +340,8 @@ export function ScheduleCanvas({
   selectedSticker,
   onSelectSticker,
   interactive = true,
+  displayScale = 1,
+  hourHeight = HOUR_HEIGHT,
 }: Props) {
   const d = schedule.design;
   const theme =
@@ -347,6 +369,7 @@ export function ScheduleCanvas({
   const dateFor = (n: number) => addDays(monday, n);
   const midnight = d.theme === "midnight";
   const style: CSSProperties = {
+    minHeight: hourHeight === HOUR_HEIGHT ? undefined : 0,
     backgroundColor: d.background,
     color: midnight ? "#eee2f5" : "#5c524f",
     fontFamily: `'${d.font}', ${d.font === "Georgia" ? "serif" : "sans-serif"}`,
@@ -390,6 +413,7 @@ export function ScheduleCanvas({
     <div
       className={`schedule-paper ${midnight ? "night-paper" : ""} ${d.grid ? "show-grid" : ""} view-${view}`}
       style={style}
+      data-hour-height={hourHeight}
       onTouchStart={(ev) => {
         if (view === "daily") touch.current = ev.touches[0].clientX;
       }}
@@ -444,12 +468,9 @@ export function ScheduleCanvas({
               gridTemplateColumns: `48px repeat(${days.length}, minmax(0,1fr))`,
             }}
           >
-            <div
-              className="hours"
-              style={{ height: (max - min) * HOUR_HEIGHT }}
-            >
+            <div className="hours" style={{ height: (max - min) * hourHeight }}>
               {Array.from({ length: max - min }, (_, i) => (
-                <span style={{ top: i * HOUR_HEIGHT }} key={i}>
+                <span style={{ top: i * hourHeight }} key={i}>
                   {formatTime((min + i) * 60, preferences.time24)}
                 </span>
               ))}
@@ -464,6 +485,8 @@ export function ScheduleCanvas({
                   interactive={interactive}
                   startHour={min}
                   endHour={max}
+                  displayScale={displayScale}
+                  hourHeight={hourHeight}
                   onAdd={onAdd}
                 >
                   {entries.map((e) => (
@@ -479,6 +502,8 @@ export function ScheduleCanvas({
                       onResize={(end) => onResize(e.id, end)}
                       interactive={interactive}
                       conflict={conflicting.includes(e.id)}
+                      displayScale={displayScale}
+                      hourHeight={hourHeight}
                     />
                   ))}
                 </Column>
@@ -501,47 +526,59 @@ export function ScheduleCanvas({
         </div>
       )}
       {view === "list" && (
-        <div className="schedule-list">
-          {ordered.map((v) => {
-            const entries = schedule.entries
-              .filter((e) => e.day === v)
-              .sort((a, b) => a.start - b.start);
-            return (
-              <section key={v}>
-                <h3>
-                  {dayNames[v]}
-                  <small>{format(dateFor(v), "MMM d")}</small>
-                </h3>
-                {entries.length ? (
-                  entries.map((e) => (
-                    <button
-                      className="list-activity"
-                      style={{ borderLeftColor: e.color }}
-                      key={e.id}
-                      onClick={() => interactive && onEdit(e)}
-                    >
-                      <span className="list-time">
-                        {formatTime(e.start, preferences.time24)}
-                        <small>{formatTime(e.end, preferences.time24)}</small>
-                      </span>
-                      <span>
-                        <strong>{e.title}</strong>
-                        <small>
-                          {[e.location, e.instructor]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        </small>
-                        {e.notes && <small>{e.notes}</small>}
-                      </span>
-                      {conflicting.includes(e.id) && <AlertCircle size={15} />}
-                    </button>
-                  ))
-                ) : (
-                  <p className="empty-day">A little room to breathe.</p>
-                )}
-              </section>
-            );
-          })}
+        <div
+          className="schedule-list"
+          style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}
+        >
+          {!schedule.entries.length && (
+            <p className="empty-day">
+              A little room to breathe. Add an activity to begin.
+            </p>
+          )}
+          {ordered
+            .filter((v) => schedule.entries.some((e) => e.day === v))
+            .map((v) => {
+              const entries = schedule.entries
+                .filter((e) => e.day === v)
+                .sort((a, b) => a.start - b.start);
+              return (
+                <section key={v}>
+                  <h3>
+                    {dayNames[v]}
+                    <small>{format(dateFor(v), "MMM d")}</small>
+                  </h3>
+                  {entries.length ? (
+                    entries.map((e) => (
+                      <button
+                        className="list-activity"
+                        style={{ borderLeftColor: e.color }}
+                        key={e.id}
+                        onClick={() => interactive && onEdit(e)}
+                      >
+                        <span className="list-time">
+                          {formatTime(e.start, preferences.time24)}
+                          <small>{formatTime(e.end, preferences.time24)}</small>
+                        </span>
+                        <span>
+                          <strong>{e.title}</strong>
+                          <small>
+                            {[e.location, e.instructor]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </small>
+                          {e.notes && <small>{e.notes}</small>}
+                        </span>
+                        {conflicting.includes(e.id) && (
+                          <AlertCircle size={15} />
+                        )}
+                      </button>
+                    ))
+                  ) : (
+                    <p className="empty-day">A little room to breathe.</p>
+                  )}
+                </section>
+              );
+            })}
         </div>
       )}
       {view === "monthly" && (

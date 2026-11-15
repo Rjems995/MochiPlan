@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
+import { createPortal } from "react-dom";
 export function Modal({
   title,
   subtitle,
@@ -53,7 +54,7 @@ export function Modal({
       previous?.focus();
     };
   }, []);
-  return (
+  return createPortal(
     <div
       className="modal-backdrop"
       onMouseDown={(ev) => {
@@ -83,6 +84,7 @@ export function Modal({
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.querySelector(".app-shell") || document.body,
   );
 }

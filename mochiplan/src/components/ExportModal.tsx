@@ -19,6 +19,7 @@ export function ExportModal({
   view,
   day,
   canvasWidth,
+  hourHeight,
   onClose,
   notify,
 }: {
@@ -28,6 +29,7 @@ export function ExportModal({
   view: View;
   day: number;
   canvasWidth: number;
+  hourHeight: number;
   onClose: () => void;
   notify: (text: string) => void;
 }) {
@@ -256,6 +258,7 @@ export function ExportModal({
       <div className="export-render" aria-hidden="true">
         <div ref={content} style={{ width: canvasWidth }}>
           <ScheduleCanvas
+            hourHeight={hourHeight}
             schedule={schedule}
             preferences={preferences}
             week={week}

@@ -1,4 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useCallback,
+} from "react";
 import {
   DndContext,
   PointerSensor,
@@ -97,6 +103,7 @@ import { ScheduleCanvas, HOUR_HEIGHT } from "./components/ScheduleCanvas";
 import { DesignPanel } from "./components/DesignPanel";
 import { EntryForm } from "./components/EntryForm";
 import { ExportModal } from "./components/ExportModal";
+import { FitContent } from "./components/FitContent";
 type InstallPrompt = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: string }>;
@@ -163,7 +170,9 @@ export default function App() {
   const [loadError, setLoadError] = useState(false);
   const [saved, setSaved] = useState("Loading your little workspace…");
   const [page, setPage] = useState<Page>("studio");
-  const [view, setView] = useState<View>("weekly");
+  const [view, setView] = useState<View>(() =>
+    window.innerWidth <= 640 ? "daily" : "weekly",
+  );
   const [week, setWeek] = useState(() => new Date());
   const [day, setDay] = useState((new Date().getDay() + 6) % 7);
   const [now, setNow] = useState(() => new Date());
@@ -184,7 +193,21 @@ export default function App() {
   const [deleteEntry, setDeleteEntry] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [selectedSticker, setSelectedSticker] = useState<string | null>(null);
-  const [tools, setTools] = useState(true);
+  const [tools, setTools] = useState(() => window.innerWidth > 850);
+  const [canvasScale, setCanvasScale] = useState(1);
+  const [canvasFrame, setCanvasFrame] = useState({ width: 0, height: 0 });
+  const handleCanvasSize = useCallback(
+    (size: { width: number; height: number }) =>
+      setCanvasFrame((old) =>
+        old.width === size.width && old.height === size.height ? old : size,
+      ),
+    [],
+  );
+  const [galleryPage, setGalleryPage] = useState(0);
+  const [galleryElement, setGalleryElement] = useState<HTMLDivElement | null>(
+    null,
+  );
+  const [galleryGrid, setGalleryGrid] = useState({ columns: 3, rows: 1 });
   const [focusMode, setFocusMode] = useState(false);
   const [renameId, setRenameId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -212,6 +235,32 @@ export default function App() {
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latest = useRef(data);
   latest.current = data;
+  useLayoutEffect(() => {
+    if (!galleryElement) return;
+    const measure = () => {
+      const columns =
+        galleryElement.clientWidth < 520
+          ? 1
+          : galleryElement.clientWidth < 900
+            ? 2
+            : 3;
+      const rows = Math.max(
+        1,
+        Math.min(
+          3,
+          Math.floor(galleryElement.clientHeight / (columns === 1 ? 145 : 215)),
+        ),
+      );
+      setGalleryGrid((old) =>
+        old.columns === columns && old.rows === rows ? old : { columns, rows },
+      );
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(galleryElement);
+    measure();
+    return () => observer.disconnect();
+  }, [galleryElement]);
+  useEffect(() => setGalleryPage(0), [query]);
   const notify = useCallback((text: string) => {
     setToast(text);
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -538,7 +587,13 @@ export default function App() {
       ...s,
       entries: s.entries.map((e) =>
         e.id === entry.id
-          ? moveEntry(e, target, (event.delta.y / HOUR_HEIGHT) * 60, 0, 1440)
+          ? moveEntry(
+              e,
+              target,
+              (event.delta.y / canvasScale / canvasHourHeight) * 60,
+              0,
+              1440,
+            )
           : e,
       ),
     }));
@@ -546,6 +601,19 @@ export default function App() {
   const active =
     data?.schedules.find((s) => s.id === data.activeId) || data?.schedules[0]!;
   const p = data?.preferences;
+  const filteredSchedules = (data?.schedules || []).filter((s) =>
+    (s.name + " " + s.title).toLowerCase().includes(query.toLowerCase()),
+  );
+  const galleryCapacity = galleryGrid.columns * galleryGrid.rows;
+  const galleryPageCount = Math.max(
+    1,
+    Math.ceil(filteredSchedules.length / galleryCapacity),
+  );
+  const currentGalleryPage = Math.min(galleryPage, galleryPageCount - 1);
+  const gallerySchedules = filteredSchedules.slice(
+    currentGalleryPage * galleryCapacity,
+    (currentGalleryPage + 1) * galleryCapacity,
+  );
   const visibleTemplates = templates.filter(
     (t) =>
       (templateFilter === "All templates" || t.category === templateFilter) &&
@@ -599,6 +667,26 @@ export default function App() {
     (a, e) => a + (e.end - e.start) / 60,
     0,
   );
+  const timetableHours =
+    Math.max(
+      active.design.endHour,
+      ...active.entries.map((e) => Math.ceil(e.end / 60)),
+    ) -
+    Math.min(
+      active.design.startHour,
+      ...active.entries.map((e) => Math.floor(e.start / 60)),
+    );
+  const canvasHourHeight =
+    (view === "weekly" || view === "daily") && canvasFrame.height > 0
+      ? Math.max(
+          12,
+          Math.min(
+            HOUR_HEIGHT,
+            (canvasFrame.height - (view === "daily" ? 230 : 200)) /
+              timetableHours,
+          ),
+        )
+      : HOUR_HEIGHT;
   const upcoming = Array.from({ length: 7 }, (_, i) => ({
     day: (todayDay + i) % 7,
     offset: i,
@@ -615,6 +703,7 @@ export default function App() {
     )
     .slice(0, 3);
   const canvasProps = {
+    hourHeight: canvasHourHeight,
     schedule: active,
     preferences: p,
     week,
@@ -644,7 +733,7 @@ export default function App() {
   };
   return (
     <div
-      className={`app-shell ${p.dark ? "dark-mode" : ""} ${page === "studio" ? "editing-schedule" : ""} ${focusMode && page === "studio" ? "focus-mode" : ""}`}
+      className={`app-shell ${p.dark ? "dark-mode" : ""} ${page === "studio" || page === "schedules" ? "bounded-workspace" : ""} ${page === "studio" ? "editing-schedule" : ""} ${focusMode && page === "studio" ? "focus-mode" : ""}`}
       style={
         {
           "--theme-accent": getTheme(p.theme).accent,
@@ -839,6 +928,7 @@ export default function App() {
           <AnimatePresence mode="wait">
             <motion.div
               key={page}
+              className="page-body"
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
@@ -943,16 +1033,27 @@ export default function App() {
                     className={`studio-layout ${tools ? "" : "tools-hidden"}`}
                   >
                     {tools && (
-                      <DesignPanel
-                        schedule={active}
-                        onDesign={design}
-                        onTheme={applyTheme}
-                        selectedSticker={selectedSticker}
-                        onSelectSticker={setSelectedSticker}
-                        preferences={p}
-                        onPreferences={pref}
-                        notify={notify}
-                      />
+                      <div className="design-inspector">
+                        <button
+                          className="inspector-close icon-button"
+                          aria-label="Close design tools"
+                          onClick={() => setTools(false)}
+                        >
+                          <X size={17} />
+                        </button>
+                        <FitContent minWidth={238} maxWidth={238} align="start">
+                          <DesignPanel
+                            schedule={active}
+                            onDesign={design}
+                            onTheme={applyTheme}
+                            selectedSticker={selectedSticker}
+                            onSelectSticker={setSelectedSticker}
+                            preferences={p}
+                            onPreferences={pref}
+                            notify={notify}
+                          />
+                        </FitContent>
+                      </div>
                     )}
                     <section className="canvas-workspace">
                       <div className="canvas-toolbar">
@@ -1051,21 +1152,33 @@ export default function App() {
                         />
                       </label>
                       <div className="canvas-scroller">
-                        <div className="canvas-inner" ref={canvasRef}>
-                          <DndContext
-                            sensors={sensors}
-                            collisionDetection={closestCenter}
-                            onDragStart={() => {
-                              ignoreClick.current = Date.now() + 60000;
-                            }}
-                            onDragCancel={() => {
-                              ignoreClick.current = Date.now() + 100;
-                            }}
-                            onDragEnd={dragEnd}
-                          >
-                            <ScheduleCanvas {...canvasProps} />
-                          </DndContext>
-                        </div>
+                        <FitContent
+                          minWidth={
+                            view === "daily" ? 320 : view === "list" ? 640 : 720
+                          }
+                          maxWidth={view === "daily" ? 760 : 1600}
+                          onScaleChange={setCanvasScale}
+                          onSizeChange={handleCanvasSize}
+                        >
+                          <div className="canvas-inner" ref={canvasRef}>
+                            <DndContext
+                              sensors={sensors}
+                              collisionDetection={closestCenter}
+                              onDragStart={() => {
+                                ignoreClick.current = Date.now() + 60000;
+                              }}
+                              onDragCancel={() => {
+                                ignoreClick.current = Date.now() + 100;
+                              }}
+                              onDragEnd={dragEnd}
+                            >
+                              <ScheduleCanvas
+                                {...canvasProps}
+                                displayScale={canvasScale}
+                              />
+                            </DndContext>
+                          </div>
+                        </FitContent>
                       </div>
                       <div className="canvas-status">
                         <span>
@@ -1360,85 +1473,123 @@ export default function App() {
                       {data.schedules.length} saved on this device
                     </span>
                   </div>
-                  <div className="schedule-gallery">
-                    {data.schedules
-                      .filter((s) =>
-                        (s.name + " " + s.title)
-                          .toLowerCase()
-                          .includes(query.toLowerCase()),
-                      )
-                      .map((s) => (
-                        <article className="schedule-card" key={s.id}>
-                          <button
-                            className="schedule-card-preview"
-                            onClick={() => chooseSchedule(s.id)}
-                          >
-                            <TemplatePreview
-                              template={{
-                                id: s.id,
-                                name: s.title,
-                                theme: s.design.theme,
-                                pattern: s.design.pattern,
-                                font: s.design.font,
-                                emoji: getTheme(s.design.theme).emoji,
-                                category: s.type,
-                                subtitle: s.design.subtitle,
-                              }}
-                            />
+                  <div
+                    className="schedule-gallery"
+                    ref={setGalleryElement}
+                    style={
+                      {
+                        "--gallery-columns": galleryGrid.columns,
+                        "--gallery-rows": galleryGrid.rows,
+                      } as React.CSSProperties
+                    }
+                  >
+                    {gallerySchedules.map((s) => (
+                      <article className="schedule-card" key={s.id}>
+                        <button
+                          className="schedule-card-preview"
+                          onClick={() => chooseSchedule(s.id)}
+                        >
+                          <TemplatePreview
+                            template={{
+                              id: s.id,
+                              name: s.title,
+                              theme: s.design.theme,
+                              pattern: s.design.pattern,
+                              font: s.design.font,
+                              emoji: getTheme(s.design.theme).emoji,
+                              category: s.type,
+                              subtitle: s.design.subtitle,
+                            }}
+                          />
+                        </button>
+                        <div className="schedule-card-info">
+                          <button onClick={() => chooseSchedule(s.id)}>
+                            <h3>{s.name}</h3>
+                            <p>
+                              {s.type} · {s.entries.length} activities
+                            </p>
+                            <small>
+                              Edited {format(s.updatedAt, "MMM d, h:mm a")}
+                            </small>
                           </button>
-                          <div className="schedule-card-info">
-                            <button onClick={() => chooseSchedule(s.id)}>
-                              <h3>{s.name}</h3>
-                              <p>
-                                {s.type} · {s.entries.length} activities
-                              </p>
-                              <small>
-                                Edited {format(s.updatedAt, "MMM d, h:mm a")}
-                              </small>
+                          <div>
+                            <button
+                              className="icon-button"
+                              aria-label={`Rename ${s.name}`}
+                              onClick={() => {
+                                setRenameValue(s.name);
+                                setRenameId(s.id);
+                              }}
+                            >
+                              <Pencil size={15} />
                             </button>
-                            <div>
-                              <button
-                                className="icon-button"
-                                aria-label={`Rename ${s.name}`}
-                                onClick={() => {
-                                  setRenameValue(s.name);
-                                  setRenameId(s.id);
-                                }}
-                              >
-                                <Pencil size={15} />
-                              </button>
-                              <button
-                                className="icon-button"
-                                aria-label={`Duplicate ${s.name}`}
-                                onClick={() => duplicateSchedule(s)}
-                              >
-                                <Copy size={15} />
-                              </button>
-                              <button
-                                className="icon-button danger"
-                                aria-label={`Delete ${s.name}`}
-                                onClick={() => setDeleteId(s.id)}
-                              >
-                                <Trash2 size={15} />
-                              </button>
-                            </div>
+                            <button
+                              className="icon-button"
+                              aria-label={`Duplicate ${s.name}`}
+                              onClick={() => duplicateSchedule(s)}
+                            >
+                              <Copy size={15} />
+                            </button>
+                            <button
+                              className="icon-button danger"
+                              aria-label={`Delete ${s.name}`}
+                              onClick={() => setDeleteId(s.id)}
+                            >
+                              <Trash2 size={15} />
+                            </button>
                           </div>
-                        </article>
-                      ))}
-                    <button
-                      className="new-planner-card"
-                      onClick={() => {
-                        setNewName("");
-                        setNewModal(true);
-                      }}
-                    >
-                      <span>
-                        <Plus size={25} />
-                      </span>
-                      <h3>A little fresh start</h3>
-                      <p>Create something lovely.</p>
-                    </button>
+                        </div>
+                      </article>
+                    ))}
+                    {!filteredSchedules.length && (
+                      <button
+                        className="new-planner-card"
+                        onClick={() => {
+                          setNewName("");
+                          setNewModal(true);
+                        }}
+                      >
+                        <span>
+                          <Plus size={25} />
+                        </span>
+                        <h3>
+                          {query ? "A fresh plan?" : "A little fresh start"}
+                        </h3>
+                        {query && <p>No schedules match “{query}”.</p>}
+                        <p>Create something lovely.</p>
+                      </button>
+                    )}
                   </div>
+                  <nav className="collection-pager" aria-label="Schedule pages">
+                    <span>
+                      {filteredSchedules.length
+                        ? `${currentGalleryPage * galleryCapacity + 1}–${Math.min((currentGalleryPage + 1) * galleryCapacity, filteredSchedules.length)} of ${filteredSchedules.length} schedules`
+                        : "No matching schedules"}
+                    </span>
+                    <div>
+                      <button
+                        className="button secondary small"
+                        aria-label="Previous schedule page"
+                        disabled={currentGalleryPage === 0}
+                        onClick={() => setGalleryPage(currentGalleryPage - 1)}
+                      >
+                        <ChevronLeft size={14} />
+                        Previous
+                      </button>
+                      <span aria-live="polite">
+                        Page {currentGalleryPage + 1} of {galleryPageCount}
+                      </span>
+                      <button
+                        className="button secondary small"
+                        aria-label="Next schedule page"
+                        disabled={currentGalleryPage + 1 === galleryPageCount}
+                        onClick={() => setGalleryPage(currentGalleryPage + 1)}
+                      >
+                        Next
+                        <ChevronRight size={14} />
+                      </button>
+                    </div>
+                  </nav>
                 </>
               )}
               {page === "templates" && (
@@ -2231,6 +2382,7 @@ export default function App() {
           view={view}
           day={day}
           canvasWidth={canvasRef.current?.offsetWidth || 900}
+          hourHeight={canvasHourHeight}
           onClose={() => setExportOpen(false)}
           notify={notify}
         />

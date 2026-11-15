@@ -12,11 +12,21 @@ test("drag changes day and time; resizing changes duration; overlap stays readab
   const columns = page.locator(".canvas-inner .day-column");
   const firstCol = await columns.nth(0).boundingBox();
   const secondCol = await columns.nth(1).boundingBox();
+  const scale = Number(
+    await page
+      .locator(".canvas-scroller .fit-viewport")
+      .getAttribute("data-scale"),
+  );
+  const hourHeight = Number(
+    await page
+      .locator(".canvas-inner .schedule-paper")
+      .getAttribute("data-hour-height"),
+  );
   await page.mouse.move(bounds!.x + 25, bounds!.y + 15);
   await page.mouse.down();
   await page.mouse.move(
     bounds!.x + 25 + (secondCol!.x - firstCol!.x),
-    bounds!.y + 63,
+    bounds!.y + 15 + hourHeight * scale,
     { steps: 12 },
   );
   await page.mouse.up();
@@ -31,14 +41,48 @@ test("drag changes day and time; resizing changes duration; overlap stays readab
     .nth(1)
     .locator(".schedule-block")
     .filter({ hasText: "Design principles" });
-  await expect(moved).toHaveCSS("top", "96px");
+  await expect
+    .poll(() =>
+      moved.evaluate(
+        (e) =>
+          parseFloat(getComputedStyle(e).top) /
+          Number(
+            e.closest(".schedule-paper")!.getAttribute("data-hour-height"),
+          ),
+      ),
+    )
+    .toBeCloseTo(2, 1);
+  const resizeHourHeight = Number(
+    await page
+      .locator(".canvas-inner .schedule-paper")
+      .getAttribute("data-hour-height"),
+  );
+  const resizeScale = Number(
+    await page
+      .locator(".canvas-scroller .fit-viewport")
+      .getAttribute("data-scale"),
+  );
   const handle = moved.getByRole("slider");
   const hb = await handle.boundingBox();
   await page.mouse.move(hb!.x + hb!.width / 2, hb!.y + 5);
   await page.mouse.down();
-  await page.mouse.move(hb!.x + hb!.width / 2, hb!.y + 29, { steps: 6 });
+  await page.mouse.move(
+    hb!.x + hb!.width / 2,
+    hb!.y + 5 + (resizeHourHeight / 2) * resizeScale,
+    { steps: 6 },
+  );
   await page.mouse.up();
-  await expect(moved).toHaveCSS("height", "96px");
+  await expect
+    .poll(() =>
+      moved.evaluate(
+        (e) =>
+          parseFloat(getComputedStyle(e).height) /
+          Number(
+            e.closest(".schedule-paper")!.getAttribute("data-hour-height"),
+          ),
+      ),
+    )
+    .toBeCloseTo(2, 1);
   await page.waitForTimeout(350);
   await moved.click();
   await expect(page.locator("input[type=time]").nth(0)).toHaveValue("10:00");

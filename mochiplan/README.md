@@ -27,6 +27,7 @@ PWA installation and service workers require HTTPS or localhost. Offline functio
 - Mouse, touch, and keyboard dragging. Movement snaps to 15 minutes. Pull a block’s bottom edge or use its keyboard-accessible resize handle to adjust its duration.
 - Overlap warnings and side-by-side lanes for simultaneous activities. The displayed time range expands to include activities outside the selected range.
 - Weekly, daily, monthly, and list views, week/month navigation, daily swipe navigation, and a full-screen editor.
+- The editor and My Schedules fit within the viewport. Timetable spacing adapts to the available height, design controls fit in their panel, and saved schedules use responsive pagination. Phones initially open the daily view, with design controls available from the toolbar.
 - Eight built-in palettes, saved custom palettes, background colors, gradients, patterns, local background uploads, typography, text size, alignment, borders, corners, grid lines, and weekends.
 - Thirty transparent emoji stickers, drag positioning, keyboard positioning, rotation, size, and removal. Their illustration style follows the device’s emoji font.
 - Sixteen previewable templates, favorite templates and themes, and preserving activities when applying a template.

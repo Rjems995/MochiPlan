@@ -38,7 +38,14 @@ test("create, edit, overlap, undo, duplicate and persist planners", async ({
     .click();
   await expect(page.locator(".canvas-inner .schedule-block")).toHaveCount(2);
   const first = page.locator(".canvas-inner .schedule-block").first();
-  await expect(first).toHaveCSS("height", "72px");
+  const hourHeight = Number(
+    await page
+      .locator(".canvas-inner .schedule-paper")
+      .getAttribute("data-hour-height"),
+  );
+  expect(
+    parseFloat(await first.evaluate((e) => getComputedStyle(e).height)),
+  ).toBeCloseTo(1.5 * hourHeight, 1);
   await first.click();
   await page
     .getByPlaceholder("e.g. Design principles")
