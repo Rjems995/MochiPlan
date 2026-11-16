@@ -473,11 +473,6 @@
     min-height: 42px;
     gap: 10px;
   }
-  .bounded-workspace .studio-title > div {
-    width: auto;
-    flex: 1;
-    min-width: 0;
-  }
   .bounded-workspace .page-title h1 {
     font-size: 18px;
   }
@@ -485,10 +480,14 @@
   .bounded-workspace .page-title p {
     display: none;
   }
-  .bounded-workspace .studio-title .export-button {
-    margin: 0;
-    padding: 8px 9px;
-    font-size: 9px;
+  .bounded-workspace .toolbar-actions .export-button {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    gap: 0;
+  }
+  .bounded-workspace .toolbar-actions .export-label {
+    display: none;
   }
   .bounded-workspace .page-title .title-heart {
     font-size: 19px;
@@ -625,7 +624,7 @@
   }
 }
 
-/* Give the calendar the height previously occupied by duplicate editor headings. */
+/* Keep editor controls compact so the calendar gets the available height. */
 .editing-schedule .topbar {
   height: 44px;
 }
@@ -634,16 +633,6 @@
 }
 .editing-schedule .page-body {
   gap: 8px;
-}
-.editing-schedule .studio-title {
-  min-height: 40px;
-}
-.editing-schedule .studio-title .eyebrow,
-.editing-schedule .studio-title p {
-  display: none;
-}
-.editing-schedule .studio-title h1 {
-  font-size: 22px;
 }
 .editing-schedule .studio-toolbar {
   min-height: 40px;
@@ -744,8 +733,5 @@
 @media (max-width: 640px) {
   .editing-schedule .page-content {
     padding: 8px 10px;
-  }
-  .editing-schedule .studio-title h1 {
-    font-size: 18px;
   }
 }

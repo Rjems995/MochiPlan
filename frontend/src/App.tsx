@@ -943,29 +943,7 @@ export default function App() {
             >
               {page === "studio" && (
                 <>
-                  <div className="page-title studio-title">
-                    <div>
-                      <div className="eyebrow">
-                        <Sparkles size={13} /> A LITTLE STRUCTURE. A LOT OF YOU.
-                      </div>
-                      <h1>
-                        Good weeks start with a little plan
-                        <span className="title-heart">♡</span>
-                      </h1>
-                      <p>
-                        Make room for your classes, your coffee, and everything
-                        in between.
-                      </p>
-                    </div>
-                    <button
-                      className="button primary export-button"
-                      onClick={() => setExportOpen(true)}
-                    >
-                      <Download size={16} />
-                      Export planner
-                      <ChevronDown size={14} />
-                    </button>
-                  </div>
+                  <h1 className="sr-only">Design studio</h1>
                   <div className="studio-toolbar">
                     <div className="planner-select">
                       <CalendarDays size={16} />
@@ -1033,6 +1011,15 @@ export default function App() {
                       >
                         <Plus size={15} />
                         Add activity
+                      </button>
+                      <button
+                        className="button primary export-button"
+                        aria-label="Export planner"
+                        title="Export planner"
+                        onClick={() => setExportOpen(true)}
+                      >
+                        <Download size={16} />
+                        <span className="export-label">Export planner</span>
                       </button>
                     </div>
                   </div>

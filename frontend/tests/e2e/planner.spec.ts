@@ -6,7 +6,7 @@ test("create, edit, overlap, undo, duplicate and persist planners", async ({
   await page.waitForTimeout(300);
   await page.screenshot({ path: ".sites-runtime/desktop.png", fullPage: true });
   await expect(
-    page.getByRole("heading", { name: "Good weeks start with a little plan" }),
+    page.getByRole("heading", { name: "My little weekly rhythm", exact: true }),
   ).toBeVisible();
   await expect(page.locator(".sidebar")).toHaveCount(0);
   await expect(page.locator(".main-area")).toHaveCSS("margin-left", "0px");

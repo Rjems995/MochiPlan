@@ -14,12 +14,11 @@ async function expectPaperFits(page: Page) {
   await expect
     .poll(async () =>
       page.evaluate(() => {
-        const paper = document
-          .querySelector(".canvas-inner .schedule-paper")!
-          .getBoundingClientRect();
-        const stage = document
-          .querySelector(".canvas-scroller")!
-          .getBoundingClientRect();
+        const paperNode = document.querySelector(".canvas-inner .schedule-paper");
+        const stageNode = document.querySelector(".canvas-scroller");
+        if (!paperNode || !stageNode) return false;
+        const paper = paperNode.getBoundingClientRect();
+        const stage = stageNode.getBoundingClientRect();
         return (
           stage.height > 40 &&
           paper.top >= stage.top - 1 &&
