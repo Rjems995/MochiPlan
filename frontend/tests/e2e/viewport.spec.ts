@@ -126,3 +126,58 @@ test("a large saved collection stays on screen and can be paged and searched", a
   await expectPageFits(page);
   await page.screenshot({ path: ".sites-runtime/fit-collection.png" });
 });
+
+test("activity titles and times remain readable in the fitted desktop timetable", async ({
+  page,
+}) => {
+  for (const viewport of [
+    { width: 1920, height: 900 },
+    { width: 1536, height: 720 },
+    { width: 1280, height: 720 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.goto("/");
+    await page.evaluate(() => document.fonts.ready);
+    await expectPaperFits(page);
+    await expectPageFits(page);
+    await expect
+      .poll(() =>
+        page.locator(".canvas-inner .schedule-block").evaluateAll((blocks) =>
+          blocks.every((block) => {
+            const bounds = block.getBoundingClientRect();
+            return [".block-title", ".block-time", ".block-location"].every(
+              (selector) => {
+                const text = block.querySelector(selector);
+                if (!text) return selector !== ".block-time";
+                const rect = text.getBoundingClientRect();
+                return (
+                  rect.top >= bounds.top + 0.5 &&
+                  rect.bottom <= bounds.bottom - 0.5
+                );
+              },
+            );
+          }),
+        ),
+      )
+      .toBe(true);
+    const font = await page.evaluate(() => {
+      const scale = Number(
+        document
+          .querySelector(".canvas-scroller .fit-viewport")!
+          .getAttribute("data-scale"),
+      );
+      return (
+        parseFloat(
+          getComputedStyle(
+            document.querySelector(".canvas-inner .block-title")!,
+          ).fontSize,
+        ) * scale
+      );
+    });
+    expect(font).toBeGreaterThanOrEqual(10);
+    if (viewport.width === 1920)
+      await page.screenshot({ path: ".sites-runtime/roomy-desktop.png" });
+    if (viewport.width === 1536)
+      await page.screenshot({ path: ".sites-runtime/roomy-laptop.png" });
+  }
+});

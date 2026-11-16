@@ -1,4 +1,4 @@
-import { useRef, type CSSProperties } from "react";
+import { useLayoutEffect, useRef, type CSSProperties } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import {
   addDays,
@@ -40,6 +40,7 @@ type Props = {
   interactive?: boolean;
   displayScale?: number;
   hourHeight?: number;
+  onChromeChange?: (height: number) => void;
 };
 function Block({
   entry,
@@ -79,7 +80,7 @@ function Block({
         setNodeRef(node);
         block.current = node;
       }}
-      className={`schedule-block ${isDragging ? "dragging" : ""} ${conflict ? "has-conflict" : ""}`}
+      className={`schedule-block ${height < 58 ? "compact-block" : ""} ${height < 32 ? "tiny-block" : ""} ${isDragging ? "dragging" : ""} ${conflict ? "has-conflict" : ""}`}
       style={
         {
           background: entry.color,
@@ -98,20 +99,23 @@ function Block({
       {...attributes}
       {...listeners}
       onClick={onEdit}
+      title={`${entry.title}\n${formatTime(entry.start, preferences.time24)} – ${formatTime(entry.end, preferences.time24)}${entry.location ? "\n" + entry.location : ""}`}
       aria-label={`${entry.title}, ${dayNames[entry.day]}, ${formatTime(entry.start, preferences.time24)} to ${formatTime(entry.end, preferences.time24)}${conflict ? ", overlapping activity" : ""}`}
     >
       <div className="block-title">
-        {entry.title}
+        <span>{entry.title}</span>
         {conflict && <AlertCircle size={12} />}
       </div>
-      <div className="block-time">
-        {formatTime(entry.start, preferences.time24)} –{" "}
-        {formatTime(entry.end, preferences.time24)}
-      </div>
-      {height >= 62 && entry.location && (
+      {height >= 32 && (
+        <div className="block-time">
+          {formatTime(entry.start, preferences.time24)} –{" "}
+          {formatTime(entry.end, preferences.time24)}
+        </div>
+      )}
+      {height >= Math.max(62, fontSize * 3.1 + 24) && entry.location && (
         <div className="block-location">
           <MapPin size={10} />
-          {entry.location}
+          <span>{entry.location}</span>
         </div>
       )}
       {interactive && (
@@ -342,7 +346,31 @@ export function ScheduleCanvas({
   interactive = true,
   displayScale = 1,
   hourHeight = HOUR_HEIGHT,
+  onChromeChange,
 }: Props) {
+  const paperRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const paper = paperRef.current;
+    const grid = paper?.querySelector<HTMLElement>(".timetable");
+    if (!paper || !grid || !onChromeChange) return;
+    let active = true;
+    const measure = () => {
+      if (!active) return;
+      const chrome =
+        parseFloat(getComputedStyle(paper).height) -
+        parseFloat(getComputedStyle(grid).height);
+      if (chrome > 0) onChromeChange(chrome);
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(paper);
+    observer.observe(grid);
+    document.fonts.ready.then(measure);
+    measure();
+    return () => {
+      active = false;
+      observer.disconnect();
+    };
+  }, [view, onChromeChange]);
   const d = schedule.design;
   const theme =
     d.customTheme && d.theme === d.customTheme.id
@@ -369,7 +397,7 @@ export function ScheduleCanvas({
   const dateFor = (n: number) => addDays(monday, n);
   const midnight = d.theme === "midnight";
   const style: CSSProperties = {
-    minHeight: hourHeight === HOUR_HEIGHT ? undefined : 0,
+    minHeight: view === "weekly" || view === "daily" ? 0 : undefined,
     backgroundColor: d.background,
     color: midnight ? "#eee2f5" : "#5c524f",
     fontFamily: `'${d.font}', ${d.font === "Georgia" ? "serif" : "sans-serif"}`,
@@ -411,6 +439,7 @@ export function ScheduleCanvas({
   );
   return (
     <div
+      ref={paperRef}
       className={`schedule-paper ${midnight ? "night-paper" : ""} ${d.grid ? "show-grid" : ""} view-${view}`}
       style={style}
       data-hour-height={hourHeight}

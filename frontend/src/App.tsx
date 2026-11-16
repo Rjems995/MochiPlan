@@ -197,6 +197,12 @@ export default function App() {
   const [tools, setTools] = useState(() => window.innerWidth > 850);
   const [canvasScale, setCanvasScale] = useState(1);
   const [canvasFrame, setCanvasFrame] = useState({ width: 0, height: 0 });
+  const [canvasChrome, setCanvasChrome] = useState(128);
+  const handleCanvasChrome = useCallback(
+    (height: number) =>
+      setCanvasChrome((old) => (Math.abs(old - height) < 0.5 ? old : height)),
+    [],
+  );
   const handleCanvasSize = useCallback(
     (size: { width: number; height: number }) =>
       setCanvasFrame((old) =>
@@ -681,11 +687,10 @@ export default function App() {
   const canvasHourHeight =
     (view === "weekly" || view === "daily") && canvasFrame.height > 0
       ? Math.max(
-          12,
+          36,
           Math.min(
-            HOUR_HEIGHT,
-            (canvasFrame.height - (view === "daily" ? 230 : 200)) /
-              timetableHours,
+            88,
+            (canvasFrame.height - canvasChrome - 2) / timetableHours,
           ),
         )
       : HOUR_HEIGHT;
@@ -1043,7 +1048,7 @@ export default function App() {
                         >
                           <X size={17} />
                         </button>
-                        <FitContent minWidth={238} maxWidth={238} align="start">
+                        <FitContent minWidth={264} maxWidth={264} align="start">
                           <DesignPanel
                             schedule={active}
                             onDesign={design}
@@ -1107,6 +1112,20 @@ export default function App() {
                             Today
                           </button>
                         </div>
+
+                        <label className="canvas-title-field">
+                          <Pencil size={11} />
+                          <input
+                            aria-label="Planner title"
+                            value={active.title}
+                            onChange={(ev) =>
+                              updateSchedule((s) => ({
+                                ...s,
+                                title: ev.target.value,
+                              }))
+                            }
+                          />
+                        </label>
                         <div className="view-controls">
                           {(
                             ["weekly", "daily", "monthly", "list"] as View[]
@@ -1140,19 +1159,6 @@ export default function App() {
                           )}
                         </button>
                       </div>
-                      <label className="canvas-title-field">
-                        <Pencil size={11} />
-                        <input
-                          aria-label="Planner title"
-                          value={active.title}
-                          onChange={(ev) =>
-                            updateSchedule((s) => ({
-                              ...s,
-                              title: ev.target.value,
-                            }))
-                          }
-                        />
-                      </label>
                       <div className="canvas-scroller">
                         <FitContent
                           minWidth={
@@ -1177,6 +1183,7 @@ export default function App() {
                               <ScheduleCanvas
                                 {...canvasProps}
                                 displayScale={canvasScale}
+                                onChromeChange={handleCanvasChrome}
                               />
                             </DndContext>
                           </div>
