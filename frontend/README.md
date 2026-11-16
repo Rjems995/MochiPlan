@@ -1,5 +1,7 @@
 # MochiPlan
 
+This is the **frontend** workspace. The project root contains the [combined frontend/backend run commands](../README.md). Its companion [backend](../backend/README.md) provides optional, persistent server backups. Normal editing remains offline-first.
+
 A cozy schedule planner and design studio built with React, TypeScript, Vite, Tailwind CSS, Lucide, Motion, dnd-kit, Dexie, html-to-image, jsPDF, and vite-plugin-pwa.
 
 ## Run locally
@@ -42,7 +44,7 @@ The calendar represents recurring weekly activities. Moving the week or month ch
 
 ## Data and reminders
 
-The application has no account or server data dependency. Plans are stored in this browser on this device. Clearing site data also clears plans; download a full backup in Settings before clearing data or moving devices. Browser storage capacity and persistence depend on the browser.
+The application has no account and normal editing has no server dependency. Plans are stored in this browser on this device. Settings also offers manual save/restore through the companion backend. Clearing site data clears local plans and the browser’s server-backup key; download a full backup before clearing data or moving devices. Browser storage capacity and persistence depend on the browser.
 
 Reminders are optional and require notification permission. They run while the app is open; background timers may be suspended, and reminders cannot run after the app is closed. iOS notification support requires an installed web app. Settings includes these limitations, reminder timing controls, and a daily-overview notification action. There is no push server or closed-app reminder scheduler.
 
@@ -67,4 +69,4 @@ The production dependency audit has no known advisories at the time of verificat
 
 ## Hosting
 
-`.openai/hosting.json` declares a static deployment from `dist`. The Sites workflow retains the source and publishes a private app. Other static hosts can serve the same production output over HTTPS.
+`.openai/hosting.json` retains the existing Site identity and declares the frontend’s static output in `dist`. Static hosting supports the offline planner; server backups require the Node backend and a same-origin `/api` route. The root `npm run preview` command provides both locally. Publication is a separate operation.

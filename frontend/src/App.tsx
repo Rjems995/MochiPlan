@@ -104,6 +104,7 @@ import { DesignPanel } from "./components/DesignPanel";
 import { EntryForm } from "./components/EntryForm";
 import { ExportModal } from "./components/ExportModal";
 import { FitContent } from "./components/FitContent";
+import { saveServerBackup, loadServerBackup } from "./services/serverBackup";
 type InstallPrompt = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: string }>;
@@ -225,6 +226,7 @@ export default function App() {
   const [taskPriority, setTaskPriority] = useState<Task["priority"]>("medium");
   const [welcome, setWelcome] = useState(false);
   const [backupConfirm, setBackupConfirm] = useState<AppData | null>(null);
+  const [serverBackupBusy, setServerBackupBusy] = useState(false);
   const undo = useRef<Schedule[][]>([]);
   const redo = useRef<Schedule[][]>([]);
   const [historyVersion, setHistoryVersion] = useState(0);
@@ -2098,6 +2100,62 @@ export default function App() {
                         <Cloud size={14} />
                         {saved}
                       </span>
+                    </section>
+                    <section className="content-card">
+                      <h2>A little server backup</h2>
+                      <p className="settings-description">
+                        Save an extra copy of your planners, tasks, and
+                        preferences to your MochiPlan server. Your offline
+                        workspace stays on this device. Server backups are
+                        available to this browser while its site data is kept.
+                      </p>
+                      <button
+                        className="button secondary full-width"
+                        disabled={serverBackupBusy}
+                        onClick={async () => {
+                          setServerBackupBusy(true);
+                          try {
+                            await saveServerBackup(data);
+                            notify("Server backup saved.");
+                          } catch (error) {
+                            notify(
+                              error instanceof Error
+                                ? error.message
+                                : "The server backup could not be saved.",
+                            );
+                          } finally {
+                            setServerBackupBusy(false);
+                          }
+                        }}
+                      >
+                        {serverBackupBusy ? (
+                          <LoaderCircle className="spin" size={16} />
+                        ) : (
+                          <Cloud size={16} />
+                        )}
+                        Save a server backup
+                      </button>
+                      <button
+                        className="button secondary full-width"
+                        disabled={serverBackupBusy}
+                        onClick={async () => {
+                          setServerBackupBusy(true);
+                          try {
+                            setBackupConfirm(await loadServerBackup());
+                          } catch (error) {
+                            notify(
+                              error instanceof Error
+                                ? error.message
+                                : "The server backup could not be read.",
+                            );
+                          } finally {
+                            setServerBackupBusy(false);
+                          }
+                        }}
+                      >
+                        <Share2 size={16} />
+                        Restore from server
+                      </button>
                     </section>
                     <section className="content-card install-card">
                       <Mochi flower />

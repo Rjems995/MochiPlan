@@ -1,0 +1,68 @@
+export function workspace() {
+  return {
+    schedules: [
+      {
+        id: "planner",
+        name: "Spring semester",
+        title: "My little weekly rhythm",
+        type: "Class schedule",
+        updatedAt: Date.now(),
+        entries: [
+          {
+            id: "entry",
+            title: "Design principles",
+            day: 0,
+            start: 540,
+            end: 630,
+            location: "Studio 204",
+            instructor: "",
+            notes: "Bring a sketchbook",
+            color: "#f6d9e1",
+          },
+        ],
+        design: {
+          theme: "strawberry",
+          background: "#fff9f7",
+          pattern: "dots",
+          font: "Nunito",
+          fontSize: 12,
+          radius: 9,
+          grid: true,
+          border: "solid",
+          alignment: "left",
+          stickers: [],
+          image: "",
+          startHour: 8,
+          endHour: 18,
+          weekends: false,
+          gradient: false,
+          subtitle: "a lovely little week",
+        },
+      },
+    ],
+    activeId: "planner",
+    tasks: [
+      {
+        id: "task",
+        title: "Finish moodboard",
+        subject: "Design principles",
+        due: "2026-11-20",
+        priority: "high",
+        done: false,
+      },
+    ],
+    preferences: {
+      name: "Friend",
+      avatar: "🌷",
+      theme: "strawberry",
+      dark: false,
+      weekStart: "monday",
+      time24: false,
+      favorites: [],
+      favoriteThemes: [],
+      reminders: false,
+      reminderMinutes: 10,
+      onboarded: true,
+    },
+  };
+}

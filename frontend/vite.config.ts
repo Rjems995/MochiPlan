@@ -3,6 +3,8 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 export default defineConfig({
+  server: { proxy: { "/api": "http://127.0.0.1:3001" } },
+  preview: { proxy: { "/api": "http://127.0.0.1:3001" } },
   plugins: [
     react(),
     tailwindcss(),
@@ -37,6 +39,7 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
         maximumFileSizeToCacheInBytes: 5000000,
         navigateFallback: "/index.html",
+        navigateFallbackDenylist: [/^\/api(?:\/|$)/],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,

@@ -1,0 +1,23 @@
+{
+  "name": "mochiplan-project",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "node dev.mjs dev",
+    "build": "npm run build --workspace frontend",
+    "preview": "node dev.mjs preview",
+    "start": "node dev.mjs preview",
+    "test": "npm run test --workspaces --if-present",
+    "test:e2e": "npm run test:e2e --workspace frontend",
+    "dev:frontend": "npm run dev --workspace frontend",
+    "dev:backend": "npm run dev --workspace backend"
+  }
+}
