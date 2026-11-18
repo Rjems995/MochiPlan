@@ -64,7 +64,7 @@
 .paper-term {
   font-size: 9px;
   line-height: 1.5;
-  opacity: 0.75;
+  color: var(--paper-muted, #73665f);
   margin-top: 5px;
 }
 .calendar-date-notes {
@@ -101,17 +101,17 @@
 }
 .holiday-note {
   background: #f5e9c9;
-  color: #8e784b;
+  color: #6b552c;
 }
 .outside-term-note {
   background: #e8e3df;
-  color: #8f8078;
+  color: #64554e;
 }
 .cancelled-note {
   display: block;
   font-size: 8px;
   line-height: 1.5;
-  color: #987e79;
+  color: var(--paper-muted, #73665f);
   text-decoration: line-through;
   max-width: 100%;
   white-space: nowrap;
@@ -138,11 +138,11 @@
 .month-cell .cancelled-note {
   font-size: 7px;
 }
-.dark-mode .holiday-note {
+.night-paper .holiday-note {
   background: #695a38;
   color: #f2dca7;
 }
-.dark-mode .outside-term-note {
+.night-paper .outside-term-note {
   background: #51434d;
   color: #d0bdc7;
 }

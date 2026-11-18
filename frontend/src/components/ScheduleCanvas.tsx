@@ -14,6 +14,9 @@ import {
   getTheme,
 } from "../model";
 import { Flower, Mochi } from "./Artwork";
+import { StickerArt } from "./StickerArt";
+import { illustrationFor } from "../illustrations";
+import { readableColor } from "../contrast";
 import {
   dateKey,
   dateForWeekday,
@@ -87,6 +90,8 @@ function Block({
       style={
         {
           background: entry.color,
+          color: readableColor(entry.color),
+          "--block-muted": readableColor(entry.color, "#6e605a"),
           top: ((entry.start - startHour * 60) / 60) * hourHeight,
           height,
           left: `calc(${(lanes.lane / lanes.count) * 100}% + 5px)`,
@@ -272,7 +277,7 @@ function DecorativeSticker({
       className={`canvas-sticker ${selected && interactive ? "selected" : ""}`}
       role={interactive ? "button" : undefined}
       tabIndex={interactive ? 0 : undefined}
-      aria-label={`Decorative ${sticker.emoji} sticker. Drag to move.`}
+      aria-label={`${illustrationFor(sticker.emoji).name} sticker. Drag to move.`}
       style={{
         left: `${sticker.x}%`,
         top: `${sticker.y}%`,
@@ -337,7 +342,7 @@ function DecorativeSticker({
         position.current = null;
       }}
     >
-      {sticker.emoji}
+      <StickerArt token={sticker.emoji} />
     </span>
   );
 }
@@ -447,10 +452,13 @@ export function ScheduleCanvas({
     );
   }
   const midnight = d.theme === "midnight";
-  const style: CSSProperties = {
+  const style = {
     minHeight: view === "weekly" || view === "daily" ? 0 : undefined,
     backgroundColor: d.background,
-    color: midnight ? "#eee2f5" : "#5c524f",
+    color: readableColor(d.background),
+    "--paper-ink": readableColor(d.background),
+    "--paper-muted": readableColor(d.background, "#73665f"),
+    "--paper-accent-ink": readableColor(d.background, "#98536d"),
     fontFamily: `'${d.font}', ${d.font === "Georgia" ? "serif" : "sans-serif"}`,
     textAlign: d.alignment,
     borderStyle: d.border === "none" ? "none" : d.border,
@@ -472,7 +480,7 @@ export function ScheduleCanvas({
         : d.pattern === "dots"
           ? "12px 12px"
           : "18px 18px",
-  };
+  } as CSSProperties;
   const month = startOfMonth(week);
   const monthDays = viewDates(week, "monthly", day, preferences.weekStart).map(
     (key) => parseISO(key),
@@ -708,7 +716,10 @@ export function ScheduleCanvas({
                 {entriesOnDate(schedule, key).map((e) => (
                   <button
                     key={e.id}
-                    style={{ background: e.color }}
+                    style={{
+                      background: e.color,
+                      color: readableColor(e.color),
+                    }}
                     onClick={() => interactive && onEdit(e, key)}
                     title={`${e.title} · ${formatTime(e.start, preferences.time24)}`}
                   >

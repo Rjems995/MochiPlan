@@ -104,6 +104,8 @@ import { ExportModal } from "./components/ExportModal";
 import { FitContent } from "./components/FitContent";
 import { saveServerBackup, loadServerBackup } from "./services/serverBackup";
 import { CalendarDialog } from "./components/CalendarDialog";
+import { StickerArt } from "./components/StickerArt";
+import { readableColor } from "./contrast";
 import {
   dateKey,
   dateForWeekday,
@@ -139,7 +141,7 @@ function TemplatePreview({
       className={`template-art ${large ? "large" : ""} ${template.pattern === "grid" ? "template-grid-bg" : ""}`}
       style={{
         background: theme.bg,
-        color: theme.color,
+        color: readableColor(theme.bg, theme.color),
         fontFamily: template.font,
         backgroundImage:
           template.pattern === "dots"
@@ -147,7 +149,9 @@ function TemplatePreview({
             : undefined,
       }}
     >
-      <span className="template-emoji">{template.emoji}</span>
+      <span className="template-emoji">
+        <StickerArt token={template.emoji} />
+      </span>
       <h4>{template.name}</h4>
       <p>{template.subtitle}</p>
       <div className="mini-calendar">
@@ -814,9 +818,9 @@ export default function App() {
           "--theme-accent": getTheme(p.theme).accent,
           "--workspace-accent":
             p.theme === "strawberry"
-              ? "#b96d86"
+              ? "#9c516b"
               : p.theme === "midnight"
-                ? "#8b74a4"
+                ? "#725c8c"
                 : getTheme(p.theme).color,
           "--workspace-soft": getTheme(p.theme).accent + "35",
         } as React.CSSProperties
@@ -1336,7 +1340,7 @@ export default function App() {
                     <Mochi flower />
                     <Flower className="banner-flower" />
                     <span className="banner-theme-emoji" aria-hidden="true">
-                      {getTheme(p.theme).emoji}
+                      <StickerArt token={getTheme(p.theme).emoji} />
                     </span>
                   </div>
                   <div className="stat-row">
@@ -1492,7 +1496,10 @@ export default function App() {
                       <button
                         className="upcoming-card"
                         key={e.id}
-                        style={{ background: e.color }}
+                        style={{
+                          background: e.color,
+                          color: readableColor(e.color),
+                        }}
                         onClick={() => {
                           setPage("studio");
                           setWeek(parseISO(e.occurrenceDate));
@@ -2363,9 +2370,14 @@ export default function App() {
                     key={t.id}
                     className={newTheme === t.id ? "selected" : ""}
                     onClick={() => setNewTheme(t.id)}
-                    style={{ background: t.bg, color: t.color }}
+                    style={{
+                      background: t.bg,
+                      color: readableColor(t.bg, t.color),
+                    }}
                   >
-                    <span>{t.emoji}</span>
+                    <span>
+                      <StickerArt token={t.emoji} />
+                    </span>
                     {t.name}
                     {newTheme === t.id && <Check size={13} />}
                   </button>

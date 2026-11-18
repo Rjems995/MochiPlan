@@ -1,0 +1,241 @@
+/* Keep the compact layout while giving supporting text a readable ink color. */
+.dark-mode {
+  --pink: #e5bace;
+}
+.app-shell
+  :is(
+    .connection-status,
+    .breadcrumb,
+    .profile-name span,
+    .nav-item,
+    .section-label,
+    .panel-tip,
+    .panel-note span,
+    .design-panel-top p,
+    .field-label,
+    .toggle-row,
+    .background-row > span,
+    .small-toggle,
+    .upload-background,
+    .see-themes,
+    .design-tabs > button,
+    .view-controls > button,
+    .week-navigation > span,
+    .today-button,
+    .canvas-status,
+    .planner-type,
+    .pattern-choices small,
+    .schedule-card-info p,
+    .schedule-card-info small,
+    .template-card-info p,
+    .template-card-info small,
+    .task-details small,
+    .task-progress > small,
+    .agenda-time,
+    .agenda-item small,
+    .compact-task small,
+    .section-heading > span
+  ) {
+  color: var(--muted);
+}
+.app-shell
+  :is(
+    .button.secondary,
+    .theme-choice strong,
+    .breadcrumb strong,
+    .design-panel-top h3,
+    .planner-select select
+  ) {
+  color: var(--ink);
+}
+.app-shell
+  :is(
+    .text-button,
+    .design-tabs > button.active,
+    .view-controls > button.active,
+    .day-picker .selected,
+    .alignment-options .selected
+  ) {
+  color: var(--pink);
+}
+.app-shell .view-controls > button.active {
+  background: var(--surface);
+}
+.app-shell :is(.pattern-choices > button, .alignment-options > button) {
+  background: var(--surface);
+}
+.app-shell
+  :is(
+    .pattern-choices .selected,
+    .alignment-options .selected,
+    .day-picker .selected
+  ) {
+  background: var(--pink-light);
+}
+.app-shell :is(input, textarea)::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+.app-shell .warning {
+  color: #755725;
+}
+.app-shell .priority-badge.high {
+  color: #844b55;
+}
+.app-shell .priority-badge.medium {
+  color: #715a2c;
+}
+.app-shell .priority-badge.low {
+  color: #4f6543;
+}
+.app-shell .task-row.completed .task-details strong {
+  color: var(--muted);
+}
+.app-shell :is(.toolbar-actions > .icon-button, .undo-controls, .tools-toggle) {
+  color: var(--muted);
+}
+.dark-mode .editor-back {
+  color: var(--pink);
+}
+.app-shell .bottom-nav {
+  background: var(--surface);
+  border-color: var(--line);
+}
+.app-shell .bottom-nav > button {
+  color: var(--muted);
+}
+.app-shell .bottom-nav > button.active {
+  background: var(--pink-light);
+  color: var(--pink);
+}
+.dark-mode .canvas-workspace {
+  background-image: radial-gradient(#c4afdc35 0.7px, transparent 0.7px);
+}
+.app-shell .upcoming-card :is(h3, p, span) {
+  color: inherit;
+}
+
+/* Paper colors depend on the planner background, independently of app dark mode. */
+.schedule-paper :is(.paper-heading h2, .schedule-list h3, .month-label) {
+  color: var(--paper-ink);
+}
+.schedule-paper
+  :is(
+    .paper-heading p,
+    .paper-kicker,
+    .day-heading,
+    .time-label,
+    .hours > span,
+    .day-heading > small,
+    .paper-footer,
+    .paper-brand,
+    .schedule-list h3 > small,
+    .list-activity small,
+    .empty-day
+  ) {
+  color: var(--paper-muted);
+  opacity: 1;
+}
+.schedule-paper .day-heading > small,
+.schedule-paper .hours > span,
+.schedule-paper .time-label {
+  font-size: 9px;
+  font-weight: 500;
+}
+.schedule-paper .paper-footer > span:first-child,
+.schedule-paper .paper-brand span {
+  color: inherit;
+}
+.schedule-paper .day-heading.today > span,
+.schedule-paper .daily-nav .active {
+  background: #f1d5df;
+  color: #79465b;
+}
+.schedule-paper .day-add {
+  color: var(--paper-accent-ink);
+}
+.schedule-paper :is(.block-time, .block-location) {
+  color: var(--block-muted);
+  opacity: 1;
+}
+.schedule-paper .schedule-list h3 > small,
+.schedule-paper .empty-day {
+  opacity: 1;
+}
+.schedule-paper .list-activity {
+  background: transparent;
+}
+.night-paper.show-grid .day-column {
+  border-left-color: #c4afdc30;
+  background-image: linear-gradient(to bottom, #c4afdc30 1px, transparent 1px);
+}
+.schedule-paper .other-month {
+  opacity: 1;
+  background: #aa88770a;
+}
+.schedule-paper .other-month > span {
+  color: var(--paper-muted);
+}
+.schedule-paper .month-cell.current-date > span {
+  background: #efd1dc;
+  color: #694252;
+}
+.schedule-paper .month-cell > button {
+  font-size: 9px;
+}
+.schedule-paper .month-cell > button > small {
+  font-size: 8px;
+  opacity: 1;
+}
+.schedule-paper :is(.holiday-note, .outside-term-note, .cancelled-note) {
+  font-size: 9px;
+}
+.template-art :is(p, .mini-days > span) {
+  opacity: 1;
+}
+.template-art .mini-days {
+  background: transparent;
+}
+
+/* Every sticker uses the same inline SVG on screen, offline, and in exports. */
+.sticker-art {
+  display: inline-block;
+  flex-shrink: 0;
+  vertical-align: middle;
+  pointer-events: none;
+}
+.canvas-sticker .sticker-art {
+  display: block;
+}
+.sticker-collection > button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.design-inspector .sticker-collection > button .sticker-art {
+  width: 26px;
+  height: 26px;
+}
+.sticker-tools h4 .sticker-art {
+  width: 23px;
+  height: 23px;
+  margin-right: 3px;
+}
+.theme-emoji {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.theme-emoji .sticker-art {
+  width: 23px;
+  height: 23px;
+}
+.template-emoji,
+.banner-theme-emoji {
+  opacity: 1;
+}
+.sticker-collection > button:focus-visible,
+.canvas-sticker:focus-visible {
+  outline: 2px solid var(--pink);
+  outline-offset: 3px;
+}

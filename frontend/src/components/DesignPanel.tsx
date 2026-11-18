@@ -24,6 +24,8 @@ import {
 } from "../model";
 import { Mochi } from "./Artwork";
 import { Modal } from "./Modal";
+import { StickerArt } from "./StickerArt";
+import { stickerCatalog, illustrationFor } from "../illustrations";
 type Props = {
   schedule: Schedule;
   onDesign: (patch: Partial<Design>) => void;
@@ -34,38 +36,6 @@ type Props = {
   onPreferences: (patch: Partial<Preferences>) => void;
   notify: (text: string) => void;
 };
-const stickers = [
-  "🍓",
-  "🍵",
-  "🌷",
-  "🌼",
-  "🌸",
-  "🍒",
-  "🐱",
-  "🐻",
-  "🐰",
-  "🧸",
-  "⭐",
-  "✨",
-  "🤍",
-  "💗",
-  "☁️",
-  "🌈",
-  "☕",
-  "📚",
-  "✏️",
-  "🥐",
-  "🍰",
-  "🎀",
-  "🦋",
-  "🌿",
-  "🌙",
-  "🧋",
-  "🍄",
-  "🐾",
-  "🕯️",
-  "🌻",
-];
 export function DesignPanel({
   schedule,
   onDesign,
@@ -136,7 +106,7 @@ export function DesignPanel({
                 >
                   <button onClick={() => onTheme(t.id)}>
                     <span className="theme-emoji" style={{ background: t.bg }}>
-                      {t.emoji}
+                      <StickerArt token={t.emoji} />
                     </span>
                     <span>
                       <strong>{t.name}</strong>
@@ -282,7 +252,7 @@ export function DesignPanel({
             Tap to add. Drag on your planner to find its happy place.
           </p>
           <div className="sticker-collection">
-            {stickers.map((emoji) => (
+            {stickerCatalog.map(({ emoji, name }) => (
               <button
                 key={emoji}
                 onClick={() => {
@@ -297,15 +267,19 @@ export function DesignPanel({
                   onDesign({ stickers: [...d.stickers, s] });
                   onSelectSticker(s.id);
                 }}
-                aria-label={`Add ${emoji} sticker`}
+                aria-label={`Add ${name.toLowerCase()} sticker`}
+                title={name}
               >
-                {emoji}
+                <StickerArt token={emoji} />
               </button>
             ))}
           </div>
           {selected && (
             <div className="sticker-tools">
-              <h4>{selected.emoji} Selected sticker</h4>
+              <h4>
+                <StickerArt token={selected.emoji} />{" "}
+                {illustrationFor(selected.emoji).name} sticker
+              </h4>
               <label className="field-label">
                 Size <span>{selected.size}px</span>
                 <input

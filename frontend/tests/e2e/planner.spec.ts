@@ -112,7 +112,7 @@ test("theme, stickers, template favorites and tasks work", async ({ page }) => {
     "rgb(245, 247, 237)",
   );
   await page.getByRole("button", { name: "Stickers", exact: true }).click();
-  await page.getByRole("button", { name: "Add 🍓 sticker" }).click();
+  await page.getByRole("button", { name: "Add strawberry sticker" }).click();
   await expect(page.locator(".canvas-inner .canvas-sticker")).toHaveCount(1);
   await page.getByRole("button", { name: "Back to my schedules" }).click();
   await page

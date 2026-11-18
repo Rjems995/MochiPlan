@@ -243,7 +243,10 @@ test("dragging a one-off event changes its calendar date without making it repea
   await expect(
     column(page, tuesday).getByText("One-time consultation", { exact: true }),
   ).toHaveCount(0);
+  // dnd-kit keeps a document click guard for 50 ms after dropping an activity.
+  await page.waitForTimeout(100);
   await page.getByRole("button", { name: "Next week", exact: true }).click();
+  await expect(column(page, shiftDate(wednesday, 7))).toBeVisible();
   await expect(
     page
       .locator(".canvas-inner .schedule-block")

@@ -15,6 +15,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./style.css";
 import "./workspace.css";
 import "./calendar.css";
+import "./polish.css";
 registerSW({
   immediate: true,
   onRegisteredSW(_url, registration) {

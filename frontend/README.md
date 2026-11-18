@@ -32,7 +32,8 @@ PWA installation and service workers require HTTPS or localhost. Offline functio
 - Weekly, daily, monthly, and list views, week/month navigation, daily swipe navigation, and a full-screen editor.
 - The editor and My Schedules fit within the viewport. Timetable spacing adapts to the available height, design controls fit in their panel, and saved schedules use responsive pagination. Phones initially open the daily view, with design controls available from the toolbar.
 - Eight built-in palettes, saved custom palettes, background colors, gradients, patterns, local background uploads, typography, text size, alignment, borders, corners, grid lines, and weekends.
-- Thirty transparent emoji stickers, drag positioning, keyboard positioning, rotation, size, and removal. Their illustration style follows the device’s emoji font.
+- Thirty illustrated SVG stickers with a shared pastel palette and rounded outlines, drag positioning, keyboard positioning, rotation, size, and removal. The same bundled artwork appears across devices, offline, in previews, and in exports. Existing saved sticker tokens resolve to these illustrations without a data migration. Unrecognized imported tokens display a keepsake star while preserving the original saved token.
+- Stronger supporting-text contrast in light and dark mode, plus adaptive text colors for planner backgrounds and activity colors. Activity times and room labels use full-opacity text.
 - Sixteen previewable templates, favorite templates and themes, and preserving activities when applying a template.
 - Personalized overview with current date/time, today’s activities, upcoming activities, and pending tasks.
 - Tasks with subjects, deadlines, priorities, completion tracking, editing, deletion, and status filters.
@@ -65,7 +66,7 @@ npm run test:e2e
 npm run build
 ```
 
-Unit tests cover date arithmetic and week starts, semester boundaries, one-off events, holiday ranges, cancellations, upcoming occurrences, backup validation, overlap detection, lane assignment, drag constraints, and time formatting. Browser tests cover calendar exceptions and restoration, exact-date editing/dragging/export, semester persistence, daily swipes across week boundaries, planner creation/editing, undo/redo, duplication/deletion confirmation, drag/resize, themes, stickers, templates, tasks, custom palettes, views, backup/restore, three download formats, offline editing/export, and mobile layouts.
+Unit tests cover text contrast on built-in and custom colors, date arithmetic and week starts, semester boundaries, one-off events, holiday ranges, cancellations, upcoming occurrences, backup validation, overlap detection, lane assignment, drag constraints, and time formatting. Browser tests cover rendered small-text contrast in light/dark mode, illustrated stickers across mobile layouts and offline exports, legacy sticker backups, calendar exceptions and restoration, exact-date editing/dragging/export, semester persistence, daily swipes across week boundaries, planner creation/editing, undo/redo, duplication/deletion confirmation, drag/resize, themes, templates, tasks, custom palettes, views, backup/restore, three download formats, offline editing/export, and mobile layouts.
 
 Browser tests use the production preview on port 4173. The configuration launches an installed Google Chrome; change the Playwright channel if using a different browser. Actual mobile installation, iOS behavior, background notification delivery, and physical printer output require testing on the target device.
 
