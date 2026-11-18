@@ -1,0 +1,176 @@
+.calendar-help {
+  font-size: 10px;
+  line-height: 1.7;
+  color: var(--muted);
+  margin: -5px 0 17px;
+}
+.calendar-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 20px 0 13px;
+  color: var(--ink);
+}
+.calendar-section-title h3 {
+  font-size: 14px;
+}
+.calendar-rule-list {
+  margin: 13px 0;
+}
+.calendar-rule {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.calendar-rule > span {
+  min-width: 0;
+}
+.calendar-rule strong {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.calendar-rule small {
+  display: block;
+  font-size: 10px;
+  margin-top: 4px;
+  color: var(--muted);
+}
+.entry-exception {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 17px;
+}
+.entry-exception > p:first-child {
+  font-size: 11px;
+  font-weight: 500;
+  margin: 0 0 8px;
+}
+.entry-exception .calendar-help {
+  margin: 8px 0;
+}
+.exception-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+.paper-term {
+  font-size: 9px;
+  line-height: 1.5;
+  opacity: 0.75;
+  margin-top: 5px;
+}
+.calendar-date-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  max-width: 100%;
+  text-align: left;
+  letter-spacing: 0;
+}
+.calendar-date-notes:empty {
+  display: none;
+}
+.schedule-paper .day-heading {
+  flex-wrap: wrap;
+  row-gap: 5px;
+}
+.day-heading .calendar-date-notes {
+  flex: 0 0 100%;
+  align-items: center;
+}
+.holiday-note,
+.outside-term-note {
+  display: block;
+  font-size: 8px;
+  line-height: 1.4;
+  padding: 2px 5px;
+  border-radius: 4px;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.holiday-note {
+  background: #f5e9c9;
+  color: #8e784b;
+}
+.outside-term-note {
+  background: #e8e3df;
+  color: #8f8078;
+}
+.cancelled-note {
+  display: block;
+  font-size: 8px;
+  line-height: 1.5;
+  color: #987e79;
+  text-decoration: line-through;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 1px 3px;
+  text-align: left;
+}
+.schedule-paper .holiday-column {
+  background-color: #f1e9d440;
+}
+.schedule-paper .outside-term-column {
+  background-color: #d5cdca22;
+}
+.schedule-list .calendar-date-notes {
+  margin-bottom: 7px;
+}
+.month-cell .calendar-date-notes {
+  gap: 2px;
+  margin-bottom: 3px;
+}
+.month-cell .holiday-note,
+.month-cell .outside-term-note,
+.month-cell .cancelled-note {
+  font-size: 7px;
+}
+.dark-mode .holiday-note {
+  background: #695a38;
+  color: #f2dca7;
+}
+.dark-mode .outside-term-note {
+  background: #51434d;
+  color: #d0bdc7;
+}
+@media (max-width: 640px) {
+  .bounded-workspace .planner-select select {
+    width: 110px;
+  }
+  .bounded-workspace .toolbar-actions .calendar-dates-button {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    gap: 0;
+  }
+  .bounded-workspace .calendar-label {
+    display: none;
+  }
+  .calendar-help {
+    font-size: 10px;
+  }
+}
+@media (max-width: 380px) {
+  .bounded-workspace .toolbar-actions .activity-label {
+    display: none;
+  }
+  .bounded-workspace .toolbar-actions .button:has(.activity-label) {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    gap: 0;
+  }
+}

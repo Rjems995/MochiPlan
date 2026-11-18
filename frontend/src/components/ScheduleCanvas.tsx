@@ -1,14 +1,6 @@
 import { useLayoutEffect, useRef, type CSSProperties } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
-import {
-  addDays,
-  addMonths,
-  startOfMonth,
-  startOfWeek,
-  getDaysInMonth,
-  format,
-  isSameDay,
-} from "date-fns";
+import { startOfMonth, format, isSameDay, parseISO } from "date-fns";
 import { MapPin, Plus, GripVertical, AlertCircle } from "lucide-react";
 import {
   type Schedule,
@@ -19,10 +11,21 @@ import {
   dayNames,
   formatTime,
   entryLanes,
-  conflicts,
   getTheme,
 } from "../model";
 import { Flower, Mochi } from "./Artwork";
+import {
+  dateKey,
+  dateForWeekday,
+  entriesOnDate,
+  cancelledOnDate,
+  holidaysOnDate,
+  outsideTerm,
+  conflictsOnDate,
+  viewDates,
+  shiftDate,
+  weekdayForDate,
+} from "../calendar";
 export const HOUR_HEIGHT = 48;
 type Props = {
   schedule: Schedule;
@@ -30,9 +33,9 @@ type Props = {
   week: Date;
   view: View;
   day: number;
-  onDay: (d: number) => void;
-  onEdit: (e: Entry) => void;
-  onAdd: (day: number, start?: number) => void;
+  onDay: (d: number, date?: string) => void;
+  onEdit: (e: Entry, date?: string) => void;
+  onAdd: (day: number, start?: number, date?: string) => void;
   onResize: (id: string, end: number) => void;
   onSticker: (id: string, patch: Partial<Sticker>) => void;
   selectedSticker: string | null;
@@ -189,25 +192,32 @@ function Column({
   endHour,
   displayScale,
   hourHeight,
+  date,
+  holiday,
+  inactive,
 }: {
   day: number;
   children: React.ReactNode;
-  onAdd: (day: number, time: number) => void;
+  onAdd: (day: number, time: number, date?: string) => void;
   interactive: boolean;
   startHour: number;
   endHour: number;
   displayScale: number;
   hourHeight: number;
+  date: string;
+  holiday: boolean;
+  inactive: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${day}`,
-    data: { day },
+    data: { day, date },
     disabled: !interactive,
   });
   return (
     <div
       ref={setNodeRef}
-      className={`day-column ${isOver ? "drop-active" : ""}`}
+      className={`day-column ${holiday ? "holiday-column" : ""} ${inactive ? "outside-term-column" : ""} ${isOver ? "drop-active" : ""}`}
+      data-date={date}
       style={{
         height: (endHour - startHour) * hourHeight,
         backgroundSize: `100% ${hourHeight}px`,
@@ -228,6 +238,7 @@ function Column({
                 startHour * 60,
             ),
           ),
+          date,
         );
       }}
     >
@@ -372,29 +383,69 @@ export function ScheduleCanvas({
     };
   }, [view, onChromeChange]);
   const d = schedule.design;
+  const renderedDates = viewDates(week, view, day, preferences.weekStart);
+  const visibleEntries = renderedDates.flatMap((date) =>
+    entriesOnDate(schedule, date),
+  );
   const theme =
     d.customTheme && d.theme === d.customTheme.id
       ? d.customTheme
       : getTheme(d.theme);
   const min = Math.min(
     d.startHour,
-    ...schedule.entries.map((e) => Math.floor(e.start / 60)),
+    ...visibleEntries.map((e) => Math.floor(e.start / 60)),
   );
   const max = Math.max(
     d.endHour,
-    ...schedule.entries.map((e) => Math.ceil(e.end / 60)),
+    ...visibleEntries.map((e) => Math.ceil(e.end / 60)),
   );
   const ordered =
     preferences.weekStart === "sunday"
       ? [6, 0, 1, 2, 3, 4, 5]
       : [0, 1, 2, 3, 4, 5, 6];
+  const keyFor = (v: number) => dateForWeekday(week, v, preferences.weekStart);
   const days =
-    view === "daily" ? [day] : ordered.filter((v) => d.weekends || v < 5);
-  const conflicting = conflicts(schedule.entries).map((e) => e.id);
+    view === "daily"
+      ? [day]
+      : ordered.filter(
+          (v) =>
+            d.weekends ||
+            v < 5 ||
+            entriesOnDate(schedule, keyFor(v)).length ||
+            cancelledOnDate(schedule, keyFor(v)).length ||
+            holidaysOnDate(schedule, keyFor(v)).length,
+        );
+  const conflicting = renderedDates.flatMap((date) =>
+    conflictsOnDate(schedule, date).map((e) => e.id),
+  );
   const today = new Date();
   const touch = useRef<number | null>(null);
-  const monday = startOfWeek(week, { weekStartsOn: 1 });
-  const dateFor = (n: number) => addDays(monday, n);
+  const dateFor = (n: number) => parseISO(keyFor(n));
+  function dateNotes(key: string) {
+    return (
+      <div className="calendar-date-notes">
+        {outsideTerm(schedule, key) && (
+          <span className="outside-term-note">Outside semester</span>
+        )}
+        {holidaysOnDate(schedule, key).map((h) => (
+          <span className="holiday-note" key={h.id} title={h.name}>
+            {h.name}
+          </span>
+        ))}
+        {cancelledOnDate(schedule, key).map((e) => (
+          <button
+            className="cancelled-note"
+            key={e.id}
+            aria-label={`Edit cancelled ${e.title} on ${key}`}
+            title={`${e.title} cancelled on ${key}`}
+            onClick={() => interactive && onEdit(e, key)}
+          >
+            {e.title} · cancelled
+          </button>
+        ))}
+      </div>
+    );
+  }
   const midnight = d.theme === "midnight";
   const style: CSSProperties = {
     minHeight: view === "weekly" || view === "daily" ? 0 : undefined,
@@ -423,19 +474,8 @@ export function ScheduleCanvas({
           : "18px 18px",
   };
   const month = startOfMonth(week);
-  const monthFirst = startOfWeek(month, {
-    weekStartsOn: preferences.weekStart === "monday" ? 1 : 0,
-  });
-  const monthDays = Array.from(
-    {
-      length:
-        Math.ceil(
-          ((month.getTime() - monthFirst.getTime()) / 86400000 +
-            getDaysInMonth(month)) /
-            7,
-        ) * 7,
-    },
-    (_, i) => addDays(monthFirst, i),
+  const monthDays = viewDates(week, "monthly", day, preferences.weekStart).map(
+    (key) => parseISO(key),
   );
   return (
     <div
@@ -449,7 +489,10 @@ export function ScheduleCanvas({
       onTouchEnd={(ev) => {
         if (view !== "daily" || touch.current === null) return;
         const delta = ev.changedTouches[0].clientX - touch.current;
-        if (Math.abs(delta) > 80) onDay((day + (delta < 0 ? 1 : 6)) % 7);
+        if (Math.abs(delta) > 80) {
+          const next = shiftDate(keyFor(day), delta < 0 ? 1 : -1);
+          onDay(weekdayForDate(next), next);
+        }
         touch.current = null;
       }}
     >
@@ -459,6 +502,18 @@ export function ScheduleCanvas({
         </div>
         <h2>{schedule.title}</h2>
         <p>{d.subtitle}</p>
+        {(schedule.termStart || schedule.termEnd) && (
+          <div className="paper-term">
+            Semester:{" "}
+            {schedule.termStart
+              ? format(parseISO(schedule.termStart), "MMM d, yyyy")
+              : "Open start"}{" "}
+            –{" "}
+            {schedule.termEnd
+              ? format(parseISO(schedule.termEnd), "MMM d, yyyy")
+              : "Open end"}
+          </div>
+        )}
         <Flower className="paper-flower" />
         <span className="paper-sparkle">✧</span>
       </div>
@@ -482,12 +537,13 @@ export function ScheduleCanvas({
                   <button
                     className="day-add"
                     aria-label="Add activity to this day"
-                    onClick={() => onAdd(v)}
+                    onClick={() => onAdd(v, 540, keyFor(v))}
                     data-export-ignore
                   >
                     <Plus size={13} />
                   </button>
                 )}
+                {dateNotes(keyFor(v))}
               </div>
             ))}
           </div>
@@ -505,7 +561,7 @@ export function ScheduleCanvas({
               ))}
             </div>
             {days.map((v) => {
-              const entries = schedule.entries.filter((e) => e.day === v);
+              const entries = entriesOnDate(schedule, keyFor(v));
               const lanes = entryLanes(entries);
               return (
                 <Column
@@ -517,6 +573,9 @@ export function ScheduleCanvas({
                   displayScale={displayScale}
                   hourHeight={hourHeight}
                   onAdd={onAdd}
+                  date={keyFor(v)}
+                  holiday={holidaysOnDate(schedule, keyFor(v)).length > 0}
+                  inactive={outsideTerm(schedule, keyFor(v))}
                 >
                   {entries.map((e) => (
                     <Block
@@ -527,7 +586,7 @@ export function ScheduleCanvas({
                       preferences={preferences}
                       radius={d.radius}
                       fontSize={d.fontSize}
-                      onEdit={() => interactive && onEdit(e)}
+                      onEdit={() => interactive && onEdit(e, keyFor(v))}
                       onResize={(end) => onResize(e.id, end)}
                       interactive={interactive}
                       conflict={conflicting.includes(e.id)}
@@ -559,30 +618,41 @@ export function ScheduleCanvas({
           className="schedule-list"
           style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}
         >
-          {!schedule.entries.length && (
-            <p className="empty-day">
-              A little room to breathe. Add an activity to begin.
-            </p>
-          )}
+          {!visibleEntries.length &&
+            !renderedDates.some(
+              (date) =>
+                holidaysOnDate(schedule, date).length ||
+                cancelledOnDate(schedule, date).length,
+            ) && (
+              <p className="empty-day">
+                {renderedDates.every((date) => outsideTerm(schedule, date))
+                  ? "Weekly activities are outside the semester dates."
+                  : "No activities scheduled for these dates."}
+              </p>
+            )}
           {ordered
-            .filter((v) => schedule.entries.some((e) => e.day === v))
+            .filter(
+              (v) =>
+                entriesOnDate(schedule, keyFor(v)).length ||
+                holidaysOnDate(schedule, keyFor(v)).length ||
+                cancelledOnDate(schedule, keyFor(v)).length,
+            )
             .map((v) => {
-              const entries = schedule.entries
-                .filter((e) => e.day === v)
-                .sort((a, b) => a.start - b.start);
+              const entries = entriesOnDate(schedule, keyFor(v));
               return (
                 <section key={v}>
                   <h3>
                     {dayNames[v]}
                     <small>{format(dateFor(v), "MMM d")}</small>
                   </h3>
+                  {dateNotes(keyFor(v))}
                   {entries.length ? (
                     entries.map((e) => (
                       <button
                         className="list-activity"
                         style={{ borderLeftColor: e.color }}
                         key={e.id}
-                        onClick={() => interactive && onEdit(e)}
+                        onClick={() => interactive && onEdit(e, keyFor(v))}
                       >
                         <span className="list-time">
                           {formatTime(e.start, preferences.time24)}
@@ -619,26 +689,33 @@ export function ScheduleCanvas({
           ))}
           {monthDays.map((date) => {
             const v = (date.getDay() + 6) % 7;
+            const key = dateKey(date);
             return (
               <div
                 key={date.toISOString()}
                 className={`month-cell ${date.getMonth() !== month.getMonth() ? "other-month" : ""} ${isSameDay(date, today) ? "current-date" : ""}`}
+                data-date={key}
+                onDoubleClick={(ev) => {
+                  if (
+                    interactive &&
+                    !(ev.target as HTMLElement).closest("button")
+                  )
+                    onAdd(v, 540, key);
+                }}
               >
                 <span>{format(date, "d")}</span>
-                {schedule.entries
-                  .filter((e) => e.day === v)
-                  .sort((a, b) => a.start - b.start)
-                  .map((e) => (
-                    <button
-                      key={e.id}
-                      style={{ background: e.color }}
-                      onClick={() => interactive && onEdit(e)}
-                      title={`${e.title} · ${formatTime(e.start, preferences.time24)}`}
-                    >
-                      <small>{formatTime(e.start, preferences.time24)}</small>
-                      {e.title}
-                    </button>
-                  ))}
+                {dateNotes(key)}
+                {entriesOnDate(schedule, key).map((e) => (
+                  <button
+                    key={e.id}
+                    style={{ background: e.color }}
+                    onClick={() => interactive && onEdit(e, key)}
+                    title={`${e.title} · ${formatTime(e.start, preferences.time24)}`}
+                  >
+                    <small>{formatTime(e.start, preferences.time24)}</small>
+                    {e.title}
+                  </button>
+                ))}
               </div>
             );
           })}

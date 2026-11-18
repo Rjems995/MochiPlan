@@ -11,6 +11,14 @@ export type Entry = {
   instructor: string;
   notes: string;
   color: string;
+  date?: string;
+  cancelledDates?: string[];
+};
+export type Holiday = {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
 };
 export type Sticker = {
   id: string;
@@ -47,6 +55,9 @@ export type Schedule = {
   entries: Entry[];
   design: Design;
   updatedAt: number;
+  termStart?: string;
+  termEnd?: string;
+  holidays?: Holiday[];
 };
 export type Task = {
   id: string;
@@ -210,6 +221,13 @@ export const parseTime = (value: string) => {
   return h * 60 + m;
 };
 export function overlaps(a: Entry, b: Entry) {
+  if (a.date && b.date && a.date !== b.date) return false;
+  const date = a.date || b.date;
+  if (
+    date &&
+    (a.cancelledDates?.includes(date) || b.cancelledDates?.includes(date))
+  )
+    return false;
   return a.id !== b.id && a.day === b.day && a.start < b.end && a.end > b.start;
 }
 export function conflicts(entries: Entry[]) {

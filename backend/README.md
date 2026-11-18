@@ -37,6 +37,8 @@ A PUT body has this shape:
 
 The example shows the envelope; `data` must contain a complete, valid workspace with at least one planner, valid activities/designs, and full preferences. See [the frontend data types](../frontend/src/model.ts) and [backend validation](./src/validation.mjs).
 
+Version 1 also accepts optional calendar metadata: planner `termStart`/`termEnd` date strings, `holidays` with named inclusive `startDate`/`endDate` ranges, activity `date` for a one-off event, and activity `cancelledDates`. Dates use `YYYY-MM-DD`; reversed ranges, invalid dates, duplicate cancellation dates, and dates inconsistent with the activity's weekday are rejected. Existing weekly-only backups remain valid. Calendar data is stored in the same workspace JSON without a database migration.
+
 Use revision `0` to create a backup. GET includes its current revision; send that revision to replace it. Successful writes increment the revision. Stale writes return `409` without replacing the newer backup. Invalid input returns `400`, unknown backups return `404`, missing keys return `401`, and bodies over 20 MiB return `413`.
 
 ## Storage and configuration

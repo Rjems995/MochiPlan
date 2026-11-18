@@ -1,5 +1,6 @@
 import Dexie, { type Table } from "dexie";
 import type { AppData } from "./model";
+import { isCalendarDate, weekdayForDate } from "./calendar.ts";
 class MochiDatabase extends Dexie {
   state!: Table<{ id: string; data: AppData }>;
   constructor() {
@@ -69,6 +70,32 @@ export function validateBackup(value: unknown): AppData {
       s.design.endHour <= s.design.startHour
     )
       throw Error("A schedule in the backup is invalid.");
+    if (
+      (s.termStart !== undefined && !isCalendarDate(s.termStart)) ||
+      (s.termEnd !== undefined && !isCalendarDate(s.termEnd)) ||
+      (s.termStart && s.termEnd && String(s.termStart) > String(s.termEnd))
+    )
+      throw Error("The semester dates in the backup are invalid.");
+    if (s.holidays !== undefined) {
+      if (!Array.isArray(s.holidays) || s.holidays.length > 1000)
+        throw Error("The holidays in the backup are invalid.");
+      const holidayIds = new Set();
+      for (const h of s.holidays) {
+        if (
+          !isRecord(h) ||
+          typeof h.id !== "string" ||
+          holidayIds.has(h.id) ||
+          typeof h.name !== "string" ||
+          !h.name.trim() ||
+          h.name.length > 100 ||
+          !isCalendarDate(h.startDate) ||
+          !isCalendarDate(h.endDate) ||
+          h.startDate > h.endDate
+        )
+          throw Error("A holiday in the backup is invalid.");
+        holidayIds.add(h.id);
+      }
+    }
     for (const e of s.entries) {
       if (
         !isRecord(e) ||
@@ -84,6 +111,23 @@ export function validateBackup(value: unknown): AppData {
         e.end <= e.start
       )
         throw Error("An activity in the backup is invalid.");
+      if (
+        e.date !== undefined &&
+        (!isCalendarDate(e.date) || weekdayForDate(e.date) !== e.day)
+      )
+        throw Error("An activity date in the backup is invalid.");
+      if (
+        e.cancelledDates !== undefined &&
+        (!Array.isArray(e.cancelledDates) ||
+          e.cancelledDates.length > 10000 ||
+          new Set(e.cancelledDates).size !== e.cancelledDates.length ||
+          !e.cancelledDates.every(
+            (date) =>
+              isCalendarDate(date) &&
+              (e.date ? date === e.date : weekdayForDate(date) === e.day),
+          ))
+      )
+        throw Error("A cancelled class date in the backup is invalid.");
     }
   }
   const text = (v: unknown): v is string => typeof v === "string";

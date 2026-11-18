@@ -7,10 +7,18 @@ import {
   timeValue,
   parseTime,
   uid,
-  overlaps,
   themes,
 } from "../model";
 import { Modal } from "./Modal";
+import { format, parseISO } from "date-fns";
+import {
+  dateForWeekday,
+  isCalendarDate,
+  weekdayForDate,
+  candidateConflicts,
+  occurrenceStatus,
+  shiftCancellationWeekday,
+} from "../calendar";
 export function EntryForm({
   schedule,
   entry,
@@ -20,6 +28,10 @@ export function EntryForm({
   onDelete,
   onDuplicate,
   onClose,
+  initialDate,
+  weekStart = "monday",
+  onToggleCancellation,
+  initialOnce = false,
 }: {
   schedule: Schedule;
   entry: Entry | null;
@@ -29,6 +41,10 @@ export function EntryForm({
   onDelete: (id: string) => void;
   onDuplicate: (e: Entry) => void;
   onClose: () => void;
+  initialDate?: string;
+  weekStart?: "monday" | "sunday";
+  onToggleCancellation?: (id: string, date: string) => void;
+  initialOnce?: boolean;
 }) {
   const [title, setTitle] = useState(entry?.title || "");
   const [days, setDays] = useState([entry?.day ?? initialDay]);
@@ -41,7 +57,25 @@ export function EntryForm({
   const [notes, setNotes] = useState(entry?.notes || "");
   const [color, setColor] = useState(entry?.color || themes[0].palette[0]);
   const [error, setError] = useState("");
-  const candidates = days.map((day) => ({
+  const occurrenceDate =
+    initialDate ||
+    entry?.date ||
+    dateForWeekday(new Date(), entry?.day ?? initialDay, weekStart);
+  const [recurrence, setRecurrence] = useState<"weekly" | "once">(
+    entry?.date ||
+      (!entry && (initialOnce || schedule.type === "Exam schedule"))
+      ? "once"
+      : "weekly",
+  );
+  const [eventDate, setEventDate] = useState(entry?.date || occurrenceDate);
+  const [confirmCancellation, setConfirmCancellation] = useState(false);
+  const candidates = (
+    recurrence === "once"
+      ? isCalendarDate(eventDate)
+        ? [weekdayForDate(eventDate)]
+        : []
+      : days
+  ).map((day) => ({
     id: entry?.id || "new",
     title,
     day,
@@ -51,10 +85,27 @@ export function EntryForm({
     instructor,
     notes,
     color,
+    date: recurrence === "once" ? eventDate : undefined,
+    cancelledDates: entry
+      ? recurrence === "once"
+        ? entry.date === eventDate
+          ? entry.cancelledDates
+          : []
+        : !entry.date
+          ? shiftCancellationWeekday(entry, day, weekStart)
+          : []
+      : undefined,
   }));
   const conflict = candidates.some((a) =>
-    schedule.entries.some((b) => overlaps(a, b)),
+    candidateConflicts(
+      schedule,
+      a,
+      a.date || dateForWeekday(occurrenceDate, a.day, weekStart),
+    ),
   );
+  const status = entry
+    ? occurrenceStatus(schedule, entry, occurrenceDate)
+    : "none";
   return (
     <Modal
       title={entry ? "A little edit" : "Add a little activity"}
@@ -68,8 +119,12 @@ export function EntryForm({
             setError("Give your activity a name.");
             return;
           }
-          if (!days.length) {
+          if (recurrence === "weekly" && !days.length) {
             setError("Choose at least one day.");
+            return;
+          }
+          if (recurrence === "once" && !isCalendarDate(eventDate)) {
+            setError("Choose a valid event date.");
             return;
           }
           if (
@@ -99,30 +154,69 @@ export function EntryForm({
             placeholder="e.g. Design principles"
           />
         </label>
-        <fieldset className="field-label">
-          <legend>On these days</legend>
-          <div className="day-picker">
-            {dayNames.map((name, i) => (
-              <button
-                type="button"
-                key={name}
-                className={days.includes(i) ? "selected" : ""}
-                onClick={() => {
-                  setDays(
-                    entry
-                      ? [i]
-                      : days.includes(i)
-                        ? days.filter((d) => d !== i)
-                        : [...days, i],
-                  );
-                }}
-                aria-pressed={days.includes(i)}
-              >
-                {name.slice(0, 3)}
-              </button>
-            ))}
-          </div>
-        </fieldset>
+        <label className="field-label">
+          Repeats
+          <select
+            aria-label="Activity recurrence"
+            value={recurrence}
+            onChange={(ev) =>
+              setRecurrence(ev.target.value as "weekly" | "once")
+            }
+          >
+            <option value="weekly">Every week</option>
+            <option value="once">On a specific date</option>
+          </select>
+        </label>
+        {recurrence === "once" ? (
+          <label className="field-label">
+            Event date
+            <input
+              type="date"
+              aria-label="Event date"
+              required
+              value={eventDate}
+              onChange={(ev) => {
+                setEventDate(ev.target.value);
+                if (isCalendarDate(ev.target.value))
+                  setDays([weekdayForDate(ev.target.value)]);
+              }}
+            />
+          </label>
+        ) : (
+          <fieldset className="field-label">
+            <legend>On these days</legend>
+            <div className="day-picker">
+              {dayNames.map((name, i) => (
+                <button
+                  type="button"
+                  key={name}
+                  className={days.includes(i) ? "selected" : ""}
+                  onClick={() => {
+                    setDays(
+                      entry
+                        ? [i]
+                        : days.includes(i)
+                          ? days.filter((d) => d !== i)
+                          : [...days, i],
+                    );
+                  }}
+                  aria-pressed={days.includes(i)}
+                >
+                  {name.slice(0, 3)}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        )}
+        {recurrence === "weekly" &&
+          (schedule.termStart ||
+            schedule.termEnd ||
+            (schedule.holidays || []).length > 0) && (
+            <p className="calendar-help">
+              Weekly activities follow this planner’s semester dates and holiday
+              breaks.
+            </p>
+          )}
         <div className="two-fields">
           <label className="field-label">
             Starts at
@@ -208,6 +302,58 @@ export function EntryForm({
             {error}
           </p>
         )}
+        {entry &&
+          onToggleCancellation &&
+          (status === "scheduled" || status === "cancelled") && (
+            <div className="entry-exception">
+              <p>
+                {format(parseISO(occurrenceDate), "EEEE, MMMM d, yyyy")}
+                {status === "cancelled" ? " · Cancelled" : ""}
+              </p>
+              {status === "cancelled" ? (
+                <button
+                  className="button secondary"
+                  type="button"
+                  onClick={() => onToggleCancellation(entry.id, occurrenceDate)}
+                >
+                  Restore this date
+                </button>
+              ) : confirmCancellation ? (
+                <>
+                  <p className="calendar-help">
+                    Cancel only this occurrence? Other scheduled dates remain in
+                    your planner.
+                  </p>
+                  <div className="exception-actions">
+                    <button
+                      className="button secondary"
+                      type="button"
+                      onClick={() => setConfirmCancellation(false)}
+                    >
+                      Keep this class
+                    </button>
+                    <button
+                      className="button danger-button"
+                      type="button"
+                      onClick={() =>
+                        onToggleCancellation(entry.id, occurrenceDate)
+                      }
+                    >
+                      Confirm cancellation
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <button
+                  className="text-button"
+                  type="button"
+                  onClick={() => setConfirmCancellation(true)}
+                >
+                  Cancel this date
+                </button>
+              )}
+            </div>
+          )}
         <div className="modal-actions">
           {entry && (
             <>

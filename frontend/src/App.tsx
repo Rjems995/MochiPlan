@@ -21,7 +21,6 @@ import {
   addWeeks,
   addMonths,
   startOfWeek,
-  isSameDay,
   parseISO,
   isPast,
 } from "date-fns";
@@ -92,7 +91,6 @@ import {
   dayNames,
   formatTime,
   scheduleTypes,
-  conflicts,
   moveEntry,
 } from "./model";
 import { seed, makeSchedule, templates, type Template } from "./seed";
@@ -105,6 +103,19 @@ import { EntryForm } from "./components/EntryForm";
 import { ExportModal } from "./components/ExportModal";
 import { FitContent } from "./components/FitContent";
 import { saveServerBackup, loadServerBackup } from "./services/serverBackup";
+import { CalendarDialog } from "./components/CalendarDialog";
+import {
+  dateKey,
+  dateForWeekday,
+  entriesOnDate,
+  conflictsOnDate,
+  nextOccurrence,
+  weekdayForDate,
+  shiftDate,
+  shiftCancellationWeekday,
+  viewDates,
+  initialCalendarDate,
+} from "./calendar";
 type InstallPrompt = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: string }>;
@@ -185,11 +196,15 @@ export default function App() {
     entry: Entry | null;
     day: number;
     start: number;
+    date?: string;
   } | null>(null);
   const [newModal, setNewModal] = useState(false);
   const [newName, setNewName] = useState("");
   const [newType, setNewType] = useState(scheduleTypes[0]);
   const [newTheme, setNewTheme] = useState("strawberry");
+  const [newTermStart, setNewTermStart] = useState("");
+  const [newTermEnd, setNewTermEnd] = useState("");
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleteEntry, setDeleteEntry] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
@@ -287,6 +302,14 @@ export default function App() {
             };
         } catch {}
         setData(initial);
+        const opened =
+          initial.schedules.find((s) => s.id === initial.activeId) ||
+          initial.schedules[0];
+        if (opened) {
+          const date = initialCalendarDate(opened, dateKey(new Date()));
+          setWeek(parseISO(date));
+          setDay(weekdayForDate(date));
+        }
       })
       .catch(() => setLoadError(true));
     const timer = setInterval(() => setNow(new Date()), 30000);
@@ -367,14 +390,12 @@ export default function App() {
       Notification.permission !== "granted"
     )
       return;
-    const today = (now.getDay() + 6) % 7;
     const current = now.getHours() * 60 + now.getMinutes();
     for (const schedule of data.schedules)
-      for (const entry of schedule.entries) {
+      for (const entry of entriesOnDate(schedule, dateKey(now))) {
         const key = `${format(now, "yyyy-MM-dd")}-${entry.id}`;
         const delta = entry.start - current;
         if (
-          entry.day === today &&
           delta >= 0 &&
           delta <= data.preferences.reminderMinutes &&
           !notified.current.has(key)
@@ -466,6 +487,12 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
   function chooseSchedule(id: string) {
+    const selected = data?.schedules.find((s) => s.id === id);
+    if (selected) {
+      const date = initialCalendarDate(selected, dateKey(new Date()));
+      setWeek(parseISO(date));
+      setDay(weekdayForDate(date));
+    }
     setData((old) => (old ? { ...old, activeId: id } : old));
     setPage("studio");
     setSelectedSticker(null);
@@ -500,10 +527,15 @@ export default function App() {
       newType,
       newTheme,
     );
+    schedule.termStart = newTermStart || undefined;
+    schedule.termEnd = newTermEnd || undefined;
     changeSchedules((s) => [...s, schedule]);
     setData((old) => (old ? { ...old, activeId: schedule.id } : old));
     setNewModal(false);
     setPage("studio");
+    const date = initialCalendarDate(schedule, dateKey(new Date()));
+    setWeek(parseISO(date));
+    setDay(weekdayForDate(date));
     setView(
       newType === "Daily schedule" || newType === "Personal routine"
         ? "daily"
@@ -593,17 +625,30 @@ export default function App() {
     if (!entry || target === undefined) return;
     updateSchedule((s) => ({
       ...s,
-      entries: s.entries.map((e) =>
-        e.id === entry.id
-          ? moveEntry(
-              e,
-              target,
-              (event.delta.y / canvasScale / canvasHourHeight) * 60,
-              0,
-              1440,
-            )
-          : e,
-      ),
+      entries: s.entries.map((e) => {
+        if (e.id !== entry.id) return e;
+        const moved = moveEntry(
+          e,
+          target,
+          (event.delta.y / canvasScale / canvasHourHeight) * 60,
+          0,
+          1440,
+        );
+        if (e.date)
+          return {
+            ...moved,
+            date: dateForWeekday(week, target, data!.preferences.weekStart),
+            cancelledDates: [],
+          };
+        return {
+          ...moved,
+          cancelledDates: shiftCancellationWeekday(
+            e,
+            target,
+            data!.preferences.weekStart,
+          ),
+        };
+      }),
     }));
   }
   const active =
@@ -633,10 +678,7 @@ export default function App() {
       .filter((t) => !t.done)
       .sort((a, b) => (a.due || "9999").localeCompare(b.due || "9999")) || [];
   const todayDay = (now.getDay() + 6) % 7;
-  const todayEntries =
-    active?.entries
-      .filter((e) => e.day === todayDay)
-      .sort((a, b) => a.start - b.start) || [];
+  const todayEntries = active ? entriesOnDate(active, dateKey(now)) : [];
   async function installApp() {
     if (install) {
       await install.prompt();
@@ -671,18 +713,25 @@ export default function App() {
   const weekStart = startOfWeek(week, {
     weekStartsOn: p.weekStart === "monday" ? 1 : 0,
   });
-  const totalHours = active.entries.reduce(
+  const displayedDates = viewDates(week, view, day, p.weekStart);
+  const displayedEntries = displayedDates.flatMap((date) =>
+    entriesOnDate(active, date),
+  );
+  const displayedConflicts = displayedDates.flatMap((date) =>
+    conflictsOnDate(active, date),
+  );
+  const totalHours = displayedEntries.reduce(
     (a, e) => a + (e.end - e.start) / 60,
     0,
   );
   const timetableHours =
     Math.max(
       active.design.endHour,
-      ...active.entries.map((e) => Math.ceil(e.end / 60)),
+      ...displayedEntries.map((e) => Math.ceil(e.end / 60)),
     ) -
     Math.min(
       active.design.startHour,
-      ...active.entries.map((e) => Math.floor(e.start / 60)),
+      ...displayedEntries.map((e) => Math.floor(e.start / 60)),
     );
   const canvasHourHeight =
     (view === "weekly" || view === "daily") && canvasFrame.height > 0
@@ -694,21 +743,26 @@ export default function App() {
           ),
         )
       : HOUR_HEIGHT;
-  const upcoming = Array.from({ length: 7 }, (_, i) => ({
-    day: (todayDay + i) % 7,
-    offset: i,
-  }))
-    .flatMap(({ day, offset }) =>
-      active.entries
-        .filter(
-          (e) =>
-            e.day === day &&
-            (offset > 0 || e.end > now.getHours() * 60 + now.getMinutes()),
-        )
-        .sort((a, b) => a.start - b.start)
-        .map((e) => ({ ...e, offset })),
+  const upcoming = active.entries
+    .map((entry) =>
+      nextOccurrence(
+        active,
+        entry,
+        dateKey(now),
+        now.getHours() * 60 + now.getMinutes(),
+      ),
     )
-    .slice(0, 3);
+    .filter((o): o is { entry: Entry; date: string } => o !== null)
+    .sort(
+      (a, b) => a.date.localeCompare(b.date) || a.entry.start - b.entry.start,
+    )
+    .slice(0, 3)
+    .map(({ entry, date }) => ({
+      ...entry,
+      occurrenceDate: date,
+      offset:
+        date === dateKey(now) ? 0 : date === shiftDate(dateKey(now), 1) ? 1 : 2,
+    }));
   const canvasProps = {
     hourHeight: canvasHourHeight,
     schedule: active,
@@ -716,12 +770,26 @@ export default function App() {
     week,
     view,
     day,
-    onDay: setDay,
-    onEdit: (e: Entry) => {
-      if (Date.now() > ignoreClick.current)
-        setEditor({ entry: e, day: e.day, start: e.start });
+    onDay: (selectedDay: number, date?: string) => {
+      setDay(selectedDay);
+      if (date) setWeek(parseISO(date));
     },
-    onAdd: (day: number, start = 540) => setEditor({ entry: null, day, start }),
+    onEdit: (e: Entry, date?: string) => {
+      if (Date.now() > ignoreClick.current)
+        setEditor({
+          entry: e,
+          day: e.day,
+          start: e.start,
+          date: date || dateForWeekday(week, e.day, p.weekStart),
+        });
+    },
+    onAdd: (day: number, start = 540, date?: string) =>
+      setEditor({
+        entry: null,
+        day,
+        start,
+        date: date || dateForWeekday(week, day, p.weekStart),
+      }),
     onResize: (id: string, end: number) => {
       ignoreClick.current = Date.now() + 300;
       updateSchedule((s) => ({
@@ -771,6 +839,8 @@ export default function App() {
             className="button primary create-planner"
             onClick={() => {
               setNewName("");
+              setNewTermStart("");
+              setNewTermEnd("");
               setNewModal(true);
             }}
           >
@@ -962,6 +1032,15 @@ export default function App() {
                     </div>
                     <div className="toolbar-actions">
                       <button
+                        className="button secondary small calendar-dates-button"
+                        aria-label="Calendar dates"
+                        title="Semester dates, holidays and cancellations"
+                        onClick={() => setCalendarOpen(true)}
+                      >
+                        <Calendar size={15} />
+                        <span className="calendar-label">Calendar dates</span>
+                      </button>
+                      <button
                         className="icon-button fullscreen-button"
                         aria-label={
                           focusMode
@@ -1001,16 +1080,20 @@ export default function App() {
                       </div>
                       <button
                         className="button secondary small"
+                        aria-label="Add activity"
                         onClick={() =>
                           setEditor({
                             entry: null,
-                            day: todayDay < 5 ? todayDay : 0,
+                            day:
+                              view === "daily"
+                                ? day
+                                : weekdayForDate(dateKey(week)),
                             start: 540,
                           })
                         }
                       >
                         <Plus size={15} />
-                        Add activity
+                        <span className="activity-label">Add activity</span>
                       </button>
                       <button
                         className="button primary export-button"
@@ -1182,7 +1265,7 @@ export default function App() {
                           Drag to move · pull the bottom edge to resize
                         </span>
                         <span>
-                          {active.entries.length} activities <i />{" "}
+                          {displayedEntries.length} activities <i />{" "}
                           {Number(totalHours.toFixed(1))} hours of possibility
                         </span>
                       </div>
@@ -1197,12 +1280,11 @@ export default function App() {
                       Find a fresh look <ArrowRight size={14} />
                     </button>
                   </div>
-                  {conflicts(active.entries).length > 0 && (
+                  {displayedConflicts.length > 0 && (
                     <div className="notice warning overlap-notice">
                       <AlertTriangle size={15} />
-                      {conflicts(active.entries).length} activities overlap.
-                      They appear side by side; click an activity to adjust its
-                      time.
+                      {displayedConflicts.length} activities overlap. They
+                      appear side by side; click an activity to adjust its time.
                     </div>
                   )}
                 </>
@@ -1225,6 +1307,8 @@ export default function App() {
                       className="button primary"
                       onClick={() => {
                         setNewName("");
+                        setNewTermStart("");
+                        setNewTermEnd("");
                         setNewModal(true);
                       }}
                     >
@@ -1315,6 +1399,7 @@ export default function App() {
                                 entry: e,
                                 day: e.day,
                                 start: e.start,
+                                date: dateKey(now),
                               });
                             }}
                           >
@@ -1343,6 +1428,7 @@ export default function App() {
                                 entry: null,
                                 day: todayDay,
                                 start: 540,
+                                date: dateKey(now),
                               })
                             }
                           >
@@ -1409,7 +1495,16 @@ export default function App() {
                         style={{ background: e.color }}
                         onClick={() => {
                           setPage("studio");
-                          setEditor({ entry: e, day: e.day, start: e.start });
+                          setWeek(parseISO(e.occurrenceDate));
+                          setDay(e.day);
+                          setEditor({
+                            entry: active.entries.find(
+                              (entry) => entry.id === e.id,
+                            )!,
+                            day: e.day,
+                            start: e.start,
+                            date: e.occurrenceDate,
+                          });
                         }}
                       >
                         <span>
@@ -1417,7 +1512,10 @@ export default function App() {
                             ? "Today"
                             : e.offset === 1
                               ? "Tomorrow"
-                              : dayNames[e.day]}{" "}
+                              : format(
+                                  parseISO(e.occurrenceDate),
+                                  "EEE, MMM d",
+                                )}{" "}
                           · {formatTime(e.start, p.time24)}
                         </span>
                         <h3>{e.title}</h3>
@@ -1448,6 +1546,8 @@ export default function App() {
                       className="button primary"
                       onClick={() => {
                         setNewName("");
+                        setNewTermStart("");
+                        setNewTermEnd("");
                         setNewModal(true);
                       }}
                     >
@@ -1542,6 +1642,8 @@ export default function App() {
                         className="new-planner-card"
                         onClick={() => {
                           setNewName("");
+                          setNewTermStart("");
+                          setNewTermEnd("");
                           setNewModal(true);
                         }}
                       >
@@ -2004,8 +2106,9 @@ export default function App() {
                             notify("Enable gentle reminders first.");
                             return;
                           }
-                          const count = active.entries.filter(
-                            (e) => e.day === todayDay,
+                          const count = entriesOnDate(
+                            active,
+                            dateKey(now),
                           ).length;
                           const reg = await navigator.serviceWorker.ready;
                           await reg.showNotification(
@@ -2204,6 +2307,20 @@ export default function App() {
           </button>
         ))}
       </nav>
+      {calendarOpen && (
+        <CalendarDialog
+          key={active.id}
+          schedule={active}
+          onClose={() => setCalendarOpen(false)}
+          onSave={(calendar) => {
+            updateSchedule((s) => ({ ...s, ...calendar }));
+            setCalendarOpen(false);
+            notify(
+              "Calendar dates saved. Weekly activities now follow these dates.",
+            );
+          }}
+        />
+      )}
       {newModal && (
         <Modal
           title="A fresh little beginning"
@@ -2255,6 +2372,28 @@ export default function App() {
                 ))}
               </div>
             </fieldset>
+            <div className="two-fields">
+              <label className="field-label">
+                Semester starts
+                <input
+                  type="date"
+                  aria-label="Semester starts"
+                  value={newTermStart}
+                  max={newTermEnd || undefined}
+                  onChange={(ev) => setNewTermStart(ev.target.value)}
+                />
+              </label>
+              <label className="field-label">
+                Semester ends
+                <input
+                  type="date"
+                  aria-label="Semester ends"
+                  value={newTermEnd}
+                  min={newTermStart || undefined}
+                  onChange={(ev) => setNewTermEnd(ev.target.value)}
+                />
+              </label>
+            </div>
             <div className="modal-actions">
               <button
                 type="button"
@@ -2277,6 +2416,37 @@ export default function App() {
           entry={editor.entry}
           initialDay={editor.day}
           initialStart={editor.start}
+          initialDate={
+            editor.date ||
+            editor.entry?.date ||
+            dateForWeekday(week, editor.day, p.weekStart)
+          }
+          initialOnce={view === "monthly"}
+          weekStart={p.weekStart}
+          onToggleCancellation={(id, date) => {
+            const wasCancelled = active.entries
+              .find((e) => e.id === id)
+              ?.cancelledDates?.includes(date);
+            updateSchedule((s) => ({
+              ...s,
+              entries: s.entries.map((e) =>
+                e.id === id
+                  ? {
+                      ...e,
+                      cancelledDates: wasCancelled
+                        ? (e.cancelledDates || []).filter((d) => d !== date)
+                        : [...(e.cancelledDates || []), date],
+                    }
+                  : e,
+              ),
+            }));
+            setEditor(null);
+            notify(
+              wasCancelled
+                ? "This occurrence has been restored."
+                : "Only this occurrence has been cancelled.",
+            );
+          }}
           onSave={(entries) => {
             updateSchedule((s) => ({
               ...s,
@@ -2286,6 +2456,10 @@ export default function App() {
                   )
                 : [...s.entries, ...entries],
             }));
+            if (entries[0]?.date) {
+              setWeek(parseISO(entries[0].date));
+              setDay(entries[0].day);
+            }
             setEditor(null);
             notify(
               editor.entry
@@ -2299,7 +2473,12 @@ export default function App() {
               ...s,
               entries: [
                 ...s.entries,
-                { ...e, id: uid(), title: `${e.title} (copy)` },
+                {
+                  ...e,
+                  id: uid(),
+                  title: `${e.title} (copy)`,
+                  cancelledDates: [],
+                },
               ],
             }));
             setEditor(null);
@@ -2679,6 +2858,13 @@ export default function App() {
                 undo.current = [];
                 redo.current = [];
                 setData(backupConfirm);
+                const restored =
+                  backupConfirm.schedules.find(
+                    (s) => s.id === backupConfirm.activeId,
+                  ) || backupConfirm.schedules[0];
+                const date = initialCalendarDate(restored, dateKey(new Date()));
+                setWeek(parseISO(date));
+                setDay(weekdayForDate(date));
                 setBackupConfirm(null);
                 setPage("studio");
                 notify("Your little workspace is back home.");

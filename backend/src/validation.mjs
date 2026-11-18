@@ -6,6 +6,13 @@ const integer = (v, min, max) => Number.isInteger(v) && v >= min && v <= max;
 const number = (v, min, max) => Number.isFinite(v) && v >= min && v <= max;
 const color = (v) => typeof v === "string" && /^#[a-f0-9]{6}$/i.test(v);
 const bool = (v) => typeof v === "boolean";
+const date = (v) =>
+  typeof v === "string" &&
+  /^\d{4}-\d{2}-\d{2}$/.test(v) &&
+  !v.startsWith("0000") &&
+  Number.isFinite(Date.parse(v + "T12:00:00Z")) &&
+  new Date(v + "T12:00:00Z").toISOString().slice(0, 10) === v;
+const weekday = (v) => (new Date(v + "T12:00:00Z").getUTCDay() + 6) % 7;
 const oneOf = (v, values) => values.includes(v);
 const strings = (v) =>
   Array.isArray(v) && v.length <= 10000 && v.every((x) => text(x, 200));
@@ -58,6 +65,34 @@ export function validateWorkspace(body) {
       "A planner is invalid.",
     );
     ids.add(s.id);
+    ensure(
+      (s.termStart === undefined || date(s.termStart)) &&
+        (s.termEnd === undefined || date(s.termEnd)) &&
+        (!s.termStart || !s.termEnd || s.termStart <= s.termEnd),
+      "The semester dates are invalid.",
+    );
+    if (s.holidays !== undefined) {
+      ensure(
+        Array.isArray(s.holidays) && s.holidays.length <= 1000,
+        "The holidays are invalid.",
+      );
+      const holidayIds = new Set();
+      for (const h of s.holidays) {
+        ensure(
+          object(h) &&
+            text(h.id, 200) &&
+            h.id &&
+            !holidayIds.has(h.id) &&
+            text(h.name, 100) &&
+            h.name.trim() &&
+            date(h.startDate) &&
+            date(h.endDate) &&
+            h.startDate <= h.endDate,
+          "A holiday is invalid.",
+        );
+        holidayIds.add(h.id);
+      }
+    }
     const entryIds = new Set();
     for (const e of s.entries) {
       ensure(
@@ -77,6 +112,20 @@ export function validateWorkspace(body) {
         "An activity is invalid.",
       );
       entryIds.add(e.id);
+      ensure(
+        e.date === undefined || (date(e.date) && weekday(e.date) === e.day),
+        "An activity date is invalid.",
+      );
+      ensure(
+        e.cancelledDates === undefined ||
+          (Array.isArray(e.cancelledDates) &&
+            e.cancelledDates.length <= 10000 &&
+            new Set(e.cancelledDates).size === e.cancelledDates.length &&
+            e.cancelledDates.every(
+              (d) => date(d) && (e.date ? d === e.date : weekday(d) === e.day),
+            )),
+        "A cancelled class date is invalid.",
+      );
     }
     const a = s.design;
     ensure(

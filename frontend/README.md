@@ -26,6 +26,7 @@ PWA installation and service workers require HTTPS or localhost. Offline functio
 
 - Multiple planners with eight schedule types, renaming, duplication, deletion confirmation, and undo/redo.
 - Timed activities with multiple days, location, instructor, notes, custom colors, duplication, and deletion confirmation.
+- Semester start/end dates, one-off exams and events, holiday ranges, and cancellation/restoration of individual occurrences.
 - Mouse, touch, and keyboard dragging. Movement snaps to 15 minutes. Pull a block’s bottom edge or use its keyboard-accessible resize handle to adjust its duration.
 - Overlap warnings and side-by-side lanes for simultaneous activities. The displayed time range expands to include activities outside the selected range.
 - Weekly, daily, monthly, and list views, week/month navigation, daily swipe navigation, and a full-screen editor.
@@ -40,7 +41,15 @@ PWA installation and service workers require HTTPS or localhost. Offline functio
 - Serialized automatic saves to IndexedDB, lightweight local preferences, save-status feedback, backup downloads, validated backup imports, and confirmation before replacing a workspace.
 - An installable web manifest, PNG/maskable icons, service-worker precaching of the app, fonts, and export libraries, offline creation/editing/export, and automatic updates when online.
 
-The calendar represents recurring weekly activities. Moving the week or month changes the dates being viewed; activities recur on their assigned weekdays.
+## Calendar dates
+
+Open **Calendar dates** in the editor toolbar to set semester dates, add holidays or breaks, and restore cancelled occurrences. Both semester endpoints are included; either endpoint can be left empty. New planners also offer semester dates during creation.
+
+Activities default to **Every week**. Choose **On a specific date** in the activity form for an exam or one-off event. Exam planners and activities added from the monthly view default to a specific date. Weekly activities run on their assigned weekdays within the semester and pause during holidays. Explicitly dated events keep their chosen dates, including during holidays or outside the semester.
+
+Open an activity on the relevant date and select **Cancel this date**, then confirm. Other weekly occurrences remain scheduled. Restore it from the struck-through calendar label or from **Calendar dates**. Regular edits to a weekly activity apply to its repeating series. Moving a weekly activity to another weekday also moves its saved cancellation dates within their respective weeks; moving a one-off event changes only its date.
+
+Week, day, month and list views, upcoming activities, reminders, and exports all resolve the actual dates being viewed. Opening a future semester or a planner containing only one-off events selects a relevant calendar date. Existing planners and version 1 backups continue working without conversion. Calendar rules are saved locally and included in file and server backups.
 
 ## Data and reminders
 
@@ -56,7 +65,7 @@ npm run test:e2e
 npm run build
 ```
 
-Unit tests cover overlap detection, interval boundaries, lane assignment, duration-preserving drag constraints, and time formatting. Browser tests cover planner creation/editing/persistence, undo/redo, duplication/deletion confirmation, drag/resize, overlap presentation, themes, stickers, templates, tasks, custom palettes, full-screen editing, views, backup/restore, three download formats, offline cold reload/edit/export, and mobile layouts.
+Unit tests cover date arithmetic and week starts, semester boundaries, one-off events, holiday ranges, cancellations, upcoming occurrences, backup validation, overlap detection, lane assignment, drag constraints, and time formatting. Browser tests cover calendar exceptions and restoration, exact-date editing/dragging/export, semester persistence, daily swipes across week boundaries, planner creation/editing, undo/redo, duplication/deletion confirmation, drag/resize, themes, stickers, templates, tasks, custom palettes, views, backup/restore, three download formats, offline editing/export, and mobile layouts.
 
 Browser tests use the production preview on port 4173. The configuration launches an installed Google Chrome; change the Playwright channel if using a different browser. Actual mobile installation, iOS behavior, background notification delivery, and physical printer output require testing on the target device.
 

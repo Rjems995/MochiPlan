@@ -14,6 +14,85 @@ const headers = {
   Authorization: `Bearer ${key}`,
   "Content-Type": "application/json",
 };
+
+test("dated calendars persist through the workspace API", async (t) => {
+  const base = await start(t);
+  const data = workspace();
+  const s = data.schedules[0];
+  s.termStart = "2026-11-01";
+  s.termEnd = "2026-12-31";
+  s.holidays = [
+    {
+      id: "h",
+      name: "Holiday",
+      startDate: "2026-11-20",
+      endDate: "2026-11-21",
+    },
+  ];
+  s.entries[0].cancelledDates = ["2026-11-23"];
+  s.entries.push({
+    ...s.entries[0],
+    id: "exam",
+    title: "Final exam",
+    day: 2,
+    date: "2026-11-18",
+    cancelledDates: [],
+  });
+  const saved = await fetch(base + "/api/workspace", {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({ version: 1, revision: 0, data }),
+  });
+  assert.equal(saved.status, 201);
+  assert.deepEqual(
+    (await (await fetch(base + "/api/workspace", { headers })).json()).data,
+    data,
+  );
+});
+test("invalid semester, holiday, one-off and cancellation dates cannot replace a backup", async (t) => {
+  const base = await start(t);
+  const data = workspace();
+  await fetch(base + "/api/workspace", {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({ version: 1, revision: 0, data }),
+  });
+  for (const mutate of [
+    (s) => (s.termStart = "2026-11-31"),
+    (s) => {
+      s.termStart = "2026-12-01";
+      s.termEnd = "2026-11-01";
+    },
+    (s) =>
+      (s.holidays = [
+        {
+          id: "h",
+          name: "Break",
+          startDate: "2026-11-20",
+          endDate: "2026-11-19",
+        },
+      ]),
+    (s) => (s.entries[0].date = "2026-11-18"),
+    (s) => (s.entries[0].cancelledDates = ["2026-11-18"]),
+  ]) {
+    const invalid = structuredClone(data);
+    mutate(invalid.schedules[0]);
+    assert.equal(
+      (
+        await fetch(base + "/api/workspace", {
+          method: "PUT",
+          headers,
+          body: JSON.stringify({ version: 1, revision: 1, data: invalid }),
+        })
+      ).status,
+      400,
+    );
+  }
+  assert.deepEqual(
+    (await (await fetch(base + "/api/workspace", { headers })).json()).data,
+    data,
+  );
+});
 async function start(t, options = {}) {
   const server = createApp({ databasePath: ":memory:", ...options });
   server.listen(0, "127.0.0.1");
@@ -190,7 +269,10 @@ test("production serves the built frontend and never substitutes HTML for API or
   assert.match(await index.text(), /MochiPlan/);
   assert.equal(index.headers.get("cache-control"), "no-cache");
   const head = await fetch(base + "/", { method: "HEAD" });
-  assert.equal(head.headers.get("content-length"), index.headers.get("content-length"));
+  assert.equal(
+    head.headers.get("content-length"),
+    index.headers.get("content-length"),
+  );
   assert.equal(await head.text(), "");
   const asset = await fetch(base + "/assets/app.js");
   assert.equal(asset.status, 200);

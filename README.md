@@ -35,7 +35,7 @@ Open **http://127.0.0.1:4173/**. The backend serves the built frontend and its A
 
 ## Data
 
-Normal editing still saves automatically to IndexedDB and works offline. In **Settings → A little server backup**, use **Save a server backup** to store a separate copy on the backend, or **Restore from server** to load it after confirmation. Backups include planners, activities, designs, tasks and preferences. File backup/export controls also remain available offline.
+Normal editing still saves automatically to IndexedDB and works offline. In **Settings → A little server backup**, use **Save a server backup** to store a separate copy on the backend, or **Restore from server** to load it after confirmation. Backups include planners, activities, semester dates, holidays, cancelled occurrences, designs, tasks and preferences. File backup/export controls also remain available offline.
 
 The backend stores data in `backend/data/mochiplan.sqlite`, which Git ignores. Each browser uses its own random workspace key, stored in localStorage; the server stores a hash of that key. There is no account. Clearing the browser’s site data also removes its server-backup key, so keep a downloaded backup before clearing data or moving devices. Server backup is manual and requires the backend to be running.
 

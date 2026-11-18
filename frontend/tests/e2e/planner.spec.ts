@@ -22,6 +22,13 @@ test("create, edit, overlap, undo, duplicate and persist planners", async ({
   await page
     .getByPlaceholder("e.g. Design principles")
     .fill("Literature seminar");
+  for (const d of ["Wed", "Thu", "Fri", "Sat", "Sun"]) {
+    const button = page
+      .getByRole("dialog")
+      .getByRole("button", { name: d, exact: true });
+    if ((await button.getAttribute("aria-pressed")) === "true")
+      await button.click();
+  }
   for (const d of ["Mon", "Tue"]) {
     const button = page
       .getByRole("dialog")
