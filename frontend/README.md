@@ -72,6 +72,22 @@ Browser tests use the production preview on port 4173. The configuration launche
 
 The production dependency audit has no known advisories at the time of verification. The PWA build-tool dependency tree currently includes upstream advisories in deepmerge and glob/minimatch; these tools are not shipped to the browser. Recheck with `npm audit` when maintaining the project.
 
+## Source organization
+
+`src/App.tsx` composes the shared state, layout, pages, and dialogs. The UI and saved-data format remain the same.
+
+- `src/pages/`: the studio, overview, saved schedules, templates, tasks, and settings.
+- `src/hooks/useWorkspace.ts`: loading, automatic saves, preferences, schedule changes, and undo/redo.
+- `src/hooks/useScheduleEditor.ts`: calendar navigation, activities, cancellations, drag/resize, and canvas measurements.
+- `src/hooks/usePlannerManager.ts`, `useTaskManager.ts`, and `useTemplateBrowser.ts`: feature state and actions.
+- `src/hooks/useScheduleCollection.ts`: responsive gallery sizing and pagination.
+- `src/hooks/useBackups.ts`: file import, server backup, and workspace restoration.
+- `src/hooks/useAppPlatform.ts`, `useNavigation.ts`, and `useFeedback.ts`: browser/PWA events, reminders, navigation, and toast lifecycle.
+- `src/context/AppContext.ts`: the typed bridge between controllers and UI components. It is provided after the workspace is ready.
+- `src/components/AppShell.tsx`, `AppSidebar.tsx`, `AppHeader.tsx`, and `MobileNavigation.tsx`: the shared layout. Feature dialogs and template previews are separate components.
+
+Feature hooks remain mounted in the composition root, so editor dates, view selection, and filters survive page changes. Components read shared state with `useAppContext()` and call feature actions; storage and browser side effects belong in hooks and services.
+
 ## Implementation references
 
 - [Vite PWA automatic updates](https://vite-pwa-org.netlify.app/guide/auto-update.html)

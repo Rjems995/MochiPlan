@@ -1,0 +1,238 @@
+import {
+  ArrowRight,
+  ArrowUpRight,
+  Bell,
+  Cloud,
+  Download,
+  LoaderCircle,
+  MonitorDown,
+  Share2,
+} from "lucide-react";
+import { Mochi } from "../components/Artwork";
+import { useAppContext } from "../context/AppContext";
+import { type Preferences, themes } from "../model";
+import { downloadJSON } from "../storage";
+export function SettingsPage() {
+  const {
+    p,
+    data,
+    workspace: { pref, saved },
+    platform: {
+      toggleReminders,
+      sendOverview,
+      requestPersistence,
+      installApp,
+      setWelcome,
+    },
+    backups: {
+      backupInput,
+      readBackupFile,
+      serverBackupBusy,
+      saveServerCopy,
+      readServerCopy,
+    },
+  } = useAppContext();
+
+  return (
+    <>
+      <div className="page-title">
+        <div>
+          <div className="eyebrow">YOUR CORNER, YOUR WAY</div>
+          <h1>
+            All the little preferences
+            <span className="title-heart">✧</span>
+          </h1>
+          <p>Make yourself at home.</p>
+        </div>
+      </div>
+      <div className="settings-grid">
+        <section className="content-card">
+          <h2>A little about you</h2>
+          <label className="field-label">
+            What should we call you?
+            <input
+              value={p.name}
+              maxLength={40}
+              onChange={(ev) => pref({ name: ev.target.value })}
+            />
+          </label>
+          <fieldset className="field-label">
+            <legend>Choose a little companion</legend>
+            <div className="avatar-picker">
+              {["🌷", "🍓", "🐰", "🐱", "🧸", "🍵", "🌙", "🌼", "🦋", "☁️"].map(
+                (emoji) => (
+                  <button
+                    className={p.avatar === emoji ? "selected" : ""}
+                    key={emoji}
+                    onClick={() => pref({ avatar: emoji })}
+                    aria-label={`Choose ${emoji} avatar`}
+                  >
+                    {emoji}
+                  </button>
+                ),
+              )}
+            </div>
+          </fieldset>
+          <label className="field-label">
+            Your workspace palette
+            <select
+              value={p.theme}
+              onChange={(ev) => pref({ theme: ev.target.value })}
+            >
+              {themes.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.emoji} {t.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="toggle-row">
+            A cozier dark mode
+            <input
+              type="checkbox"
+              checked={p.dark}
+              onChange={(ev) => pref({ dark: ev.target.checked })}
+            />
+          </label>
+        </section>
+        <section className="content-card">
+          <h2>Plan at your pace</h2>
+          <label className="field-label">
+            My week begins on
+            <select
+              value={p.weekStart}
+              onChange={(ev) =>
+                pref({
+                  weekStart: ev.target.value as Preferences["weekStart"],
+                })
+              }
+            >
+              <option value="monday">Monday</option>
+              <option value="sunday">Sunday</option>
+            </select>
+          </label>
+          <label className="toggle-row">
+            Use 24-hour time
+            <input
+              type="checkbox"
+              checked={p.time24}
+              onChange={(ev) => pref({ time24: ev.target.checked })}
+            />
+          </label>
+          <div className="panel-divider" />
+          <h2>A gentle nudge</h2>
+          <p className="settings-description">
+            Optional reminders for upcoming activities. Reminders work while
+            MochiPlan is open. Browsers may pause them in the background; iOS
+            requires an installed web app for notifications.
+          </p>
+          <button className="button secondary" onClick={toggleReminders}>
+            <Bell size={15} />
+            {p.reminders ? "Turn off reminders" : "Enable gentle reminders"}
+          </button>
+          <label className="field-label">
+            Remind me before
+            <select
+              value={p.reminderMinutes}
+              onChange={(ev) =>
+                pref({ reminderMinutes: Number(ev.target.value) })
+              }
+            >
+              {[0, 5, 10, 15, 30].map((n) => (
+                <option key={n} value={n}>
+                  {n === 0 ? "At the start" : `${n} minutes before`}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button className="text-button" onClick={sendOverview}>
+            Send today’s little overview
+            <ArrowUpRight size={14} />
+          </button>
+        </section>
+        <section className="content-card">
+          <h2>Your plans, safe & cozy</h2>
+          <p className="settings-description">
+            Your schedules live in this browser’s IndexedDB storage. Keep a
+            backup before clearing browser data or moving to another device.
+          </p>
+          <button
+            className="button secondary full-width"
+            onClick={() => downloadJSON(data)}
+          >
+            <Download size={16} />
+            Download a full backup
+          </button>
+          <button
+            className="button secondary full-width"
+            onClick={() => backupInput.current?.click()}
+          >
+            <Share2 size={16} />
+            Restore a backup
+          </button>
+          <input
+            ref={backupInput}
+            hidden
+            type="file"
+            accept="application/json,.json"
+            onChange={readBackupFile}
+          />
+          <button className="text-button" onClick={requestPersistence}>
+            Ask browser to keep my plans
+            <ArrowUpRight size={14} />
+          </button>
+          <span className="storage-status">
+            <Cloud size={14} />
+            {saved}
+          </span>
+        </section>
+        <section className="content-card">
+          <h2>A little server backup</h2>
+          <p className="settings-description">
+            Save an extra copy of your planners, tasks, and preferences to your
+            MochiPlan server. Your offline workspace stays on this device.
+            Server backups are available to this browser while its site data is
+            kept.
+          </p>
+          <button
+            className="button secondary full-width"
+            disabled={serverBackupBusy}
+            onClick={saveServerCopy}
+          >
+            {serverBackupBusy ? (
+              <LoaderCircle className="spin" size={16} />
+            ) : (
+              <Cloud size={16} />
+            )}
+            Save a server backup
+          </button>
+          <button
+            className="button secondary full-width"
+            disabled={serverBackupBusy}
+            onClick={readServerCopy}
+          >
+            <Share2 size={16} />
+            Restore from server
+          </button>
+        </section>
+        <section className="content-card install-card">
+          <Mochi flower />
+          <h2>A little home on your homescreen</h2>
+          <p className="settings-description">
+            Install MochiPlan to keep your plans close. After your first online
+            visit, your workspace, designs, and exports work offline.
+          </p>
+          <button className="button primary" onClick={installApp}>
+            <MonitorDown size={16} />
+            Install MochiPlan
+          </button>
+          <button className="text-button" onClick={() => setWelcome(true)}>
+            Show me around
+            <ArrowRight size={14} />
+          </button>
+          <small>MochiPlan 1.0 · Made for your own little rhythm</small>
+        </section>
+      </div>
+    </>
+  );
+}
