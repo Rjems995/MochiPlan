@@ -62,7 +62,11 @@ Backup history lists the latest 30 server versions with timestamps and workspace
 
 Clearing site data clears local plans and the browser’s server-backup key; download a full backup before clearing data or moving devices. Browser storage capacity and persistence depend on the browser, and background timers may delay automatic backups. No backups run after the app is closed.
 
-Reminders are optional and require notification permission. They run while the app is open; background timers may be suspended, and reminders cannot run after the app is closed. iOS notification support requires an installed web app. Settings includes these limitations, reminder timing controls, and a daily-overview notification action. There is no push server or closed-app reminder scheduler.
+Reminders are optional and require notification permission. **Settings → A nudge, even when you’re away** enables background push separately on each device. Once its schedule is synced, the companion server can send reminders after the app closes. See [server setup](../README.md#background-reminders) for the one-time Web Push contact configuration and persistent signing keys. Use the production build or HTTPS deployment; the service worker is disabled during Vite development. iPhone/iPad requires installation to the Home Screen and permission from the installed app.
+
+Device schedule sync is independent of automatic backups. It sends only calendar/activity timing, titles and locations, including semester limits, holidays, cancellations and reschedules. Settings shows the device zone, last successful sync, last reminder sent, retry/setup states and subscription reconnection controls. Pending offline changes must sync before the server can use them. Turning off reminders unsubscribes locally even when offline and retries server cleanup after reconnecting. The server must remain running; notification delivery depends on browser, connection and device settings.
+
+**Reminders while open** retain the existing local reminders and daily overview. A synced background subscription takes priority; local and push delivery share an ID and worker deduplication to avoid repeated nudges. Selecting a notification opens the relevant planner and calendar date. Background choices are device-local and are not enabled or disabled by restoring workspace backups. Subscription expiry or changed server signing keys require reconnecting; no permission prompt appears during automatic sync.
 
 ## Verification
 
@@ -90,6 +94,9 @@ The production dependency audit has no known advisories at the time of verificat
 - `src/hooks/useBackups.ts`: file import, backup history, safety copies and workspace restoration.
 - `src/hooks/useAutomaticBackups.ts` and `src/services/automaticBackups.ts`: automatic scheduling, one queued writer, retries, conflict protection and persisted backup status.
 - `src/hooks/useAppPlatform.ts`, `useNavigation.ts`, and `useFeedback.ts`: browser/PWA events, reminders, navigation, and toast lifecycle.
+- `src/hooks/useBackgroundReminders.ts` and `useReminderNavigation.ts`: device subscriptions, schedule sync/retry, unsubscribe cleanup, and notification links.
+- `src/services/reminderPlan.ts`, `pushReminders.ts`, and `localReminder.ts`: compact reminder projection, authenticated push API, and local notification delivery.
+- `public/push-worker.js`: push display, local/push deduplication, notification clicks and subscription-change messages, imported by the generated offline service worker.
 - `src/context/AppContext.ts`: the typed bridge between controllers and UI components. It is provided after the workspace is ready.
 - `src/components/AppShell.tsx`, `AppSidebar.tsx`, `AppHeader.tsx`, and `MobileNavigation.tsx`: the shared layout. Feature dialogs and template previews are separate components.
 

@@ -98,7 +98,7 @@ test("automatic backups show success, keep history and protect current edits dur
     await page
       .getByRole("button", { name: "Backup history", exact: true })
       .click();
-    await expect(page.getByRole("alert")).toContainText(
+    await expect(page.getByRole("dialog").getByRole("alert")).toContainText(
       "Your local plans are safe.",
     );
     await page

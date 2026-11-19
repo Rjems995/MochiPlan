@@ -12,6 +12,8 @@ import { TemplateDialog } from "./components/TemplateDialog";
 import { WorkspaceLoading } from "./components/WorkspaceLoading";
 import { AppContext } from "./context/AppContext";
 import { useAppPlatform } from "./hooks/useAppPlatform";
+import { useBackgroundReminders } from "./hooks/useBackgroundReminders";
+import { useReminderNavigation } from "./hooks/useReminderNavigation";
 import { useBackups } from "./hooks/useBackups";
 import { useFeedback } from "./hooks/useFeedback";
 import { useNavigation } from "./hooks/useNavigation";
@@ -39,10 +41,16 @@ export default function App() {
   const feedback = useFeedback();
   const workspace = useWorkspace(feedback.notify);
   const navigation = useNavigation();
+  const reminders = useBackgroundReminders(
+    workspace.data,
+    workspace.saved,
+    feedback.notify,
+  );
   const platform = useAppPlatform(
     workspace.data,
     feedback.notify,
     workspace.pref,
+    reminders.suppressForeground,
   );
   const studio = useScheduleEditor(
     workspace,
@@ -68,6 +76,7 @@ export default function App() {
     feedback.notify,
   );
   const backups = useBackups(workspace, studio, navigation, feedback.notify);
+  useReminderNavigation(workspace, studio, navigation);
   const { data, active, p } = workspace;
   if (!data || !active || !p || !studio.canvasProps)
     return <WorkspaceLoading loadError={workspace.loadError} />;
@@ -88,6 +97,7 @@ export default function App() {
         tasks,
         templateBrowser,
         backups,
+        reminders,
       }}
     >
       <AppShell

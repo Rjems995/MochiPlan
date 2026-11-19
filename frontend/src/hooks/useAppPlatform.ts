@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { dateKey, entriesOnDate } from "../calendar";
 import type { Preferences } from "../model";
 import { type AppData, formatTime } from "../model";
+import { showLocalReminder } from "../services/localReminder";
+import { serviceWorkerReady } from "../services/pushReminders";
 type InstallPrompt = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: string }>;
@@ -11,6 +13,7 @@ export function useAppPlatform(
   data: AppData | null,
   notify: (text: string) => void,
   pref: (patch: Partial<Preferences>) => void,
+  backgroundRemindersActive = false,
 ) {
   const [now, setNow] = useState(() => new Date());
   const [online, setOnline] = useState(navigator.onLine);
@@ -42,6 +45,7 @@ export function useAppPlatform(
   useEffect(() => {
     if (
       !data?.preferences.reminders ||
+      backgroundRemindersActive ||
       !("Notification" in window) ||
       Notification.permission !== "granted"
     )
@@ -49,7 +53,7 @@ export function useAppPlatform(
     const current = now.getHours() * 60 + now.getMinutes();
     for (const schedule of data.schedules)
       for (const entry of entriesOnDate(schedule, dateKey(now))) {
-        const key = `${format(now, "yyyy-MM-dd")}-${entry.id}`;
+        const key = `${schedule.id}-${format(now, "yyyy-MM-dd")}-${entry.seriesId || entry.id}`;
         const delta = entry.start - current;
         if (
           delta >= 0 &&
@@ -57,23 +61,15 @@ export function useAppPlatform(
           !notified.current.has(key)
         ) {
           notified.current.add(key);
-          navigator.serviceWorker?.ready
-            .then((r) =>
-              r.showNotification(`Coming up: ${entry.title}`, {
-                body: `${formatTime(entry.start, data.preferences.time24)}${entry.location ? " · " + entry.location : ""}`,
-                icon: "/icon-192.png",
-                tag: key,
-              }),
-            )
-            .catch(
-              () =>
-                new Notification(entry.title, {
-                  body: `Starts at ${formatTime(entry.start)}`,
-                }),
-            );
+          void showLocalReminder(
+            schedule.id,
+            entry,
+            dateKey(now),
+            data.preferences.time24,
+          );
         }
       }
-  }, [now, data]);
+  }, [now, data, backgroundRemindersActive]);
   async function installApp() {
     if (install) {
       await install.prompt();
@@ -117,11 +113,17 @@ export function useAppPlatform(
       return;
     }
     const count = entriesOnDate(active, dateKey(now)).length;
-    const reg = await navigator.serviceWorker.ready;
-    await reg.showNotification("Your little day at a glance", {
-      body: `${count} ${count === 1 ? "activity" : "activities"} in ${active.name}. One little thing at a time.`,
-      icon: "/icon-192.png",
-    });
+    try {
+      const reg = await serviceWorkerReady();
+      await reg.showNotification("Your little day at a glance", {
+        body: `${count} ${count === 1 ? "activity" : "activities"} in ${active.name}. One little thing at a time.`,
+        icon: "/icon-192.png",
+      });
+    } catch {
+      notify(
+        "Open the installed app or production preview to send notifications.",
+      );
+    }
   }
   async function requestPersistence() {
     try {

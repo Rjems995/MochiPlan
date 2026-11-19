@@ -1,7 +1,6 @@
 import {
   ArrowRight,
   ArrowUpRight,
-  Bell,
   Cloud,
   Download,
   MonitorDown,
@@ -9,6 +8,7 @@ import {
 } from "lucide-react";
 import { Mochi } from "../components/Artwork";
 import { BackupSettings } from "../components/BackupSettings";
+import { ReminderSettings } from "../components/ReminderSettings";
 import { useAppContext } from "../context/AppContext";
 import { type Preferences, themes } from "../model";
 import { downloadJSON } from "../storage";
@@ -17,13 +17,7 @@ export function SettingsPage() {
     p,
     data,
     workspace: { pref, saved },
-    platform: {
-      toggleReminders,
-      sendOverview,
-      requestPersistence,
-      installApp,
-      setWelcome,
-    },
+    platform: { requestPersistence, installApp, setWelcome },
     backups: { backupInput, readBackupFile },
   } = useAppContext();
 
@@ -113,36 +107,6 @@ export function SettingsPage() {
               onChange={(ev) => pref({ time24: ev.target.checked })}
             />
           </label>
-          <div className="panel-divider" />
-          <h2>A gentle nudge</h2>
-          <p className="settings-description">
-            Optional reminders for upcoming activities. Reminders work while
-            MochiPlan is open. Browsers may pause them in the background; iOS
-            requires an installed web app for notifications.
-          </p>
-          <button className="button secondary" onClick={toggleReminders}>
-            <Bell size={15} />
-            {p.reminders ? "Turn off reminders" : "Enable gentle reminders"}
-          </button>
-          <label className="field-label">
-            Remind me before
-            <select
-              value={p.reminderMinutes}
-              onChange={(ev) =>
-                pref({ reminderMinutes: Number(ev.target.value) })
-              }
-            >
-              {[0, 5, 10, 15, 30].map((n) => (
-                <option key={n} value={n}>
-                  {n === 0 ? "At the start" : `${n} minutes before`}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button className="text-button" onClick={sendOverview}>
-            Send today’s little overview
-            <ArrowUpRight size={14} />
-          </button>
         </section>
         <section className="content-card">
           <h2>Your plans, safe & cozy</h2>
@@ -181,6 +145,7 @@ export function SettingsPage() {
           </span>
         </section>
         <BackupSettings />
+        <ReminderSettings />
         <section className="content-card install-card">
           <Mochi flower />
           <h2>A little home on your homescreen</h2>

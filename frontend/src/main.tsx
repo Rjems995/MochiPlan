@@ -18,6 +18,7 @@ import "./calendar.css";
 import "./polish.css";
 import "./scoped-edits.css";
 import "./backups.css";
+import "./reminders.css";
 registerSW({
   immediate: true,
   onRegisteredSW(_url, registration) {

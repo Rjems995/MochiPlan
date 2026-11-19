@@ -12,6 +12,14 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { WorkspaceStore } from "./database.mjs";
 import { validateWorkspace } from "./validation.mjs";
 import { HttpError } from "./errors.mjs";
+import { loadPushConfig, createPushSender } from "./push-config.mjs";
+import { ReminderStore } from "./reminder-store.mjs";
+import { ReminderScheduler } from "./reminder-scheduler.mjs";
+import {
+  validDeviceId,
+  validateReminderPlan,
+  validateSubscription,
+} from "./reminder-plan.mjs";
 
 const backendRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const types = {
@@ -78,8 +86,14 @@ export function createApp({
   allowedOrigins = [],
   maxBodyBytes = 20 * 1024 * 1024,
   historyLimit = 30,
+  push = {},
 } = {}) {
   const store = new WorkspaceStore(databasePath, { historyLimit });
+  const reminderStore = new ReminderStore(store.db);
+  const scheduler = new ReminderScheduler(reminderStore, {
+    ...push,
+    send: push.send || createPushSender(push.config || {}),
+  });
   const origins = new Set([
     "http://127.0.0.1:5173",
     "http://localhost:5173",
@@ -99,17 +113,86 @@ export function createApp({
       if (url.pathname.startsWith("/api/") || url.pathname === "/api") {
         if (req.headers.origin && !origins.has(req.headers.origin))
           throw new HttpError(403, "This origin is not allowed.");
+        if (url.pathname === "/api/push/config") {
+          if (req.method !== "GET") {
+            res.setHeader("Allow", "GET");
+            throw new HttpError(405, "Use GET for push configuration.");
+          }
+          sendJson(res, 200, {
+            version: 1,
+            configured: !!push.config?.configured,
+            publicKey: push.config?.configured ? push.config.publicKey : null,
+          });
+          return;
+        }
+        const pushRoute = /^\/api\/push\/devices\/([^/]+)(\/test)?$/.exec(
+          url.pathname,
+        );
         const historyRoute = url.pathname === "/api/workspace/history";
         const versionRoute = /^\/api\/workspace\/history\/(\d+)$/.exec(
           url.pathname,
         );
-        if (url.pathname !== "/api/workspace" && !historyRoute && !versionRoute)
+        if (
+          url.pathname !== "/api/workspace" &&
+          !historyRoute &&
+          !versionRoute &&
+          !pushRoute
+        )
           throw new HttpError(404, "API route not found.");
         const match = /^Bearer ([a-f0-9]{64})$/i.exec(
           req.headers.authorization || "",
         );
         if (!match) throw new HttpError(401, "A workspace key is required.");
         const key = match[1];
+        if (pushRoute) {
+          const deviceId = pushRoute[1];
+          if (!validDeviceId(deviceId))
+            throw new HttpError(400, "Choose a valid reminder device.");
+          if (pushRoute[2]) {
+            if (req.method !== "POST") {
+              res.setHeader("Allow", "POST");
+              throw new HttpError(405, "Use POST to send a test reminder.");
+            }
+            sendJson(res, 200, await scheduler.test(key, deviceId));
+            return;
+          }
+          if (req.method === "GET") {
+            sendJson(res, 200, reminderStore.status(key, deviceId));
+            return;
+          }
+          if (req.method === "DELETE") {
+            reminderStore.remove(key, deviceId);
+            sendJson(res, 200, { version: 1, enabled: false });
+            return;
+          }
+          if (req.method === "PUT") {
+            if (!push.config?.configured)
+              throw new HttpError(
+                503,
+                "Background reminders are not configured on this server yet.",
+              );
+            const body = await readJson(req, maxBodyBytes);
+            const subscription = validateSubscription(body?.subscription),
+              plan = validateReminderPlan(body?.plan);
+            sendJson(
+              res,
+              200,
+              reminderStore.save(
+                key,
+                deviceId,
+                subscription,
+                plan,
+                scheduler.now(),
+              ),
+            );
+            return;
+          }
+          res.setHeader("Allow", "GET, PUT, DELETE");
+          throw new HttpError(
+            405,
+            "Use GET, PUT or DELETE for reminder devices.",
+          );
+        }
         if (historyRoute || versionRoute) {
           if (req.method !== "GET") {
             res.setHeader("Allow", "GET");
@@ -209,7 +292,12 @@ export function createApp({
     }
   });
   server.requestTimeout = 30000;
-  server.on("close", () => store.close());
+  server.reminderScheduler = scheduler;
+  server.on("listening", () => scheduler.start());
+  server.on("close", () => {
+    scheduler.stop();
+    store.close();
+  });
   return server;
 }
 
@@ -233,6 +321,21 @@ if (
       .filter(Boolean)
       .concat([`http://${host}:${port}`]),
     historyLimit: Number(process.env.BACKUP_HISTORY_LIMIT || 30),
+    push: {
+      config: loadPushConfig({
+        subject: process.env.VAPID_SUBJECT,
+        keyPath: process.env.VAPID_KEY_PATH
+          ? resolve(process.env.VAPID_KEY_PATH)
+          : resolve(
+              process.env.DATABASE_PATH
+                ? dirname(resolve(process.env.DATABASE_PATH))
+                : resolve(backendRoot, "data"),
+              "push-keys.json",
+            ),
+        publicKey: process.env.VAPID_PUBLIC_KEY,
+        privateKey: process.env.VAPID_PRIVATE_KEY,
+      }),
+    },
   });
   app.on("error", (error) => {
     console.error(error.message);

@@ -43,6 +43,24 @@ Backups include planners, activities, semester dates, holidays, cancelled/resche
 
 The backend stores data in `backend/data/mochiplan.sqlite`, which Git ignores. Each browser uses its own random workspace key, stored in localStorage; the server stores a hash of that key. There is no account. Clearing the browser’s site data also removes its server-backup key, so keep a downloaded backup before clearing data or moving devices. Server backups require the backend to be running. Backups run while the app is open; browser background timers may delay them.
 
+## Background reminders
+
+Install the updated dependencies with `npm install`. Before starting the server, set a real Web Push contact address in PowerShell:
+
+```powershell
+$env:VAPID_SUBJECT='mailto:your-real-email@example.com'
+npm run build
+npm run preview
+```
+
+Replace the example email with your contact address. Open **http://127.0.0.1:4173/**, then **Settings → A nudge, even when you’re away → Enable background reminders** and allow notifications. Use **Send a test reminder** to check this device. The server generates signing keys once in the ignored `backend/data/push-keys.json`; retain that file with your SQLite data across restarts. An existing deployment can instead supply `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY`.
+
+Keep the server running with internet access. After the reminder schedule has synced, notifications can arrive with MochiPlan closed. Production hosting needs HTTPS; localhost works for testing. On iPhone or iPad, install the Home Screen app and enable reminders from there. Delivery can be delayed by device settings or connectivity.
+
+Each device opts in separately and uses its own time zone. The server respects semesters, holidays, cancellations and all edit scopes. Reminder sync is independent of automatic backups and uploads only activity timing, titles, locations and calendar rules. Settings shows the last successful schedule sync and last reminder accepted by the push service. Offline edits must sync before the server can use them. Turning reminders off unsubscribes the device immediately and retries server cleanup after reconnection.
+
+**Reminders while open** remain available as an optional local fallback. Push and local reminders use matching IDs to avoid duplicate nudges. The worker opens the relevant planner and date when a notification is selected. Server jobs and recent delivery IDs persist across restarts; temporary errors retry briefly, expired subscriptions require reconnecting, and reminders more than five minutes overdue are skipped.
+
 ## Checks
 
 ```powershell
@@ -51,7 +69,7 @@ npm run build
 npm run test:e2e
 ```
 
-These run the frontend unit tests, backend persistence/API tests, production build, and Chrome browser tests. Browser tests use an installed Google Chrome and port 4173. The server-backup integration test uses an isolated in-memory database.
+These run the frontend unit tests, backend persistence/API tests, production build, and Chrome browser tests. Browser tests use an installed Google Chrome and port 4173. Server-backup and reminder integration tests use isolated in-memory databases. Reminder tests simulate push-provider acceptance and Chrome push delivery, including delivery with no MochiPlan page open, worker deduplication, cancellation sync, offline unsubscribe and expired-subscription reconnection. Real browser push-provider delivery and physical iOS/Android device behavior still need testing on the target device.
 
 For reproducible dependency installation, use `npm ci` at the project root. The root lockfile describes both npm workspaces.
 

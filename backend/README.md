@@ -1,6 +1,6 @@
 # MochiPlan backend
 
-A Node.js 24 HTTP API with SQLite persistence. It uses Node’s built-in HTTP, filesystem, crypto and SQLite modules; there are no third-party runtime dependencies.
+A Node.js 24 HTTP API with SQLite persistence. HTTP, storage and crypto use Node’s built-in modules. Web Push delivery uses `web-push`; calendar scheduling uses Luxon for device time zones and daylight-saving transitions.
 
 From the project root:
 
@@ -48,6 +48,30 @@ Use revision `0` to create a backup. GET includes its current revision; send tha
 
 Snapshot responses include `contentHash`, `updatedAt`, `source`, and a `summary` of planners, logical activities and tasks. History returns `{ version: 1, revision, latest, versions, retentionLimit }`; metadata does not contain workspace data. Restoring uses normal revision-checked writes, preserving current plans with `before-restore` and then writing the selected snapshot with `restore`. A failed or conflicting restore leaves local plans unchanged. Older database heads migrate into history as `legacy` versions with their original revisions and timestamps.
 
+## Push reminders
+
+Set `VAPID_SUBJECT` to your real `mailto:` contact address or public HTTPS contact URL, then restart the server. A stable VAPID key pair is generated in `backend/data/push-keys.json` (or `VAPID_KEY_PATH`); keep this private file persistent and out of Git. Alternatively set both `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` to a matching key pair. Without a subject, push is disabled and existing editing, backups and local reminders continue to work. The development service worker is disabled; test push using `npm run build` and the root `npm run preview`, or an HTTPS production deployment.
+
+| Method | Route                              | Purpose                                                                  |
+| ------ | ---------------------------------- | ------------------------------------------------------------------------ |
+| GET    | `/api/push/config`                 | Public configuration: enabled status and public signing key only.        |
+| GET    | `/api/push/devices/:deviceId`      | This workspace’s device status, last sync, last accepted push and error. |
+| PUT    | `/api/push/devices/:deviceId`      | Registers or updates `{ subscription, plan }`.                           |
+| DELETE | `/api/push/devices/:deviceId`      | Removes a device and its pending jobs. Idempotent.                       |
+| POST   | `/api/push/devices/:deviceId/test` | Sends one test notification; limited to one per 30 seconds per device.   |
+
+Device routes require the same workspace bearer key as backups. `deviceId` is a UUID v4. Up to ten devices per workspace are allowed; subscription endpoints cannot be reassigned to another workspace. Supported endpoints are browser-managed HTTPS URLs for FCM, Mozilla, Apple and Windows Push. Private hosts, credentials, custom ports and malformed encryption keys are rejected.
+
+The version 1 reminder plan contains `timezone`, `minutes` (0, 5, 10, 15 or 30), `time24`, and `schedules`. Each schedule contains ID/name, optional term dates/holiday ranges, and activities with ID/title/location, weekday/start/end, dates, cancellations and recurring-series metadata. It excludes tasks, images, designs, notes and profile details. Reminder sync is separate from backup versions and supports up to 20,000 activities across all planners on one device.
+
+The scheduler checks every 15 seconds and stores jobs, claims, retries and recent delivery IDs in SQLite. Repeating activities use the same occurrence rules as the planner, including scoped edits and linked reschedules. Advance reminders can cross midnight. Repeated autumn times use their earlier instant; nonexistent spring times move forward by the clock gap. Devices refresh their zone and schedule while the app is open. A notification click opens its planner/date in the current app window or a new one.
+
+Job claims are leased for one minute and survive restarts. Temporary failures back off up to five attempts while the reminder remains relevant; `404`/`410` subscriptions and permanently rejected credentials are disabled. Only reminders due within the last five minutes and no later than one minute after activity start are considered. Push TTL is capped at two minutes and the remaining relevance window. A provider acceptance is recorded as “sent”; it cannot prove the device displayed the notification. An uncertain network result may retry, so the service worker also deduplicates delivery IDs and local reminders. Delivery records are retained for 30 days. Turning off reminders removes pending server jobs; in-flight provider deliveries cannot be recalled.
+
+The Node server must stay running with outbound HTTPS access to browser push providers; no separate cron process is needed. Devices need a secure context and permission; iOS/iPadOS requires the Home Screen app. Sync pending edits before closing the app. Offline edits cannot alter the last server schedule until reconnecting.
+
+References: [Web Push library](https://github.com/web-push-libs/web-push), [Luxon time zones](https://moment.github.io/luxon/api-docs/index.html), [Apple Web Push requirements](https://developer.apple.com/documentation/usernotifications/sending-web-push-notifications-in-web-apps-and-browsers).
+
 ## Storage and configuration
 
 SQLite data is written atomically to `backend/data/mochiplan.sqlite` with WAL journaling. The head, history insertion and pruning commit in one transaction. The latest 30 versions per workspace are retained by default. This directory is ignored by Git. Backups are isolated by workspace key and survive server restarts. API responses are not cached.
@@ -58,6 +82,9 @@ Optional process environment variables are listed in [.env.example](./.env.examp
 - `PORT`: backend port, default `3001`; the root production runner defaults to `4173`.
 - `DATABASE_PATH`: SQLite database path.
 - `BACKUP_HISTORY_LIMIT`: retained versions per workspace, an integer from 1 to 100; default `30`.
+- `VAPID_SUBJECT`: real `mailto:` or public HTTPS contact; enables background reminders.
+- `VAPID_KEY_PATH`: optional persistent private key file; defaults beside the SQLite database, named `push-keys.json`.
+- `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`: optional existing matching keys, supplied together instead of the generated file.
 - `FRONTEND_DIST`: built frontend directory, default `frontend/dist`.
 - `ALLOWED_ORIGINS`: additional comma-separated browser origins accepted by the API’s origin check. The local development and preview origins are included by default.
 
@@ -70,3 +97,5 @@ npm test --workspace backend
 ```
 
 Tests cover saved-data round trips, isolation between keys, conflict handling, invalid input, origin checks, request limits, persistence after reopening SQLite, and serving static frontend assets. Tests use memory databases or isolated temporary directories.
+
+Reminder tests cover the compact projection, validation, occurrence parity with the planner, midnight and daylight-saving transitions, durable leases after restart, duplicate prevention, retries, cancellations, expired endpoints, encrypted Web Push request generation, stable signing keys, device isolation and test-notification rate limits. Push delivery is mocked; no real subscription is contacted by the tests.

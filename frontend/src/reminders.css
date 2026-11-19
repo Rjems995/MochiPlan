@@ -1,0 +1,83 @@
+.reminder-settings .reminder-description {
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.65;
+  margin-bottom: 18px;
+}
+.reminder-notice {
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.6;
+  border-left: 3px solid var(--accent);
+  background: var(--page);
+  padding: 12px 14px;
+  margin: 14px 0;
+}
+.reminder-device-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--page);
+  margin: 18px 0;
+}
+.reminder-device-status svg {
+  color: var(--accent);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.reminder-device-status p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.reminder-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.settings-grid .reminder-actions .button,
+.reminder-actions .text-button {
+  font-size: 14px;
+  margin: 0;
+}
+.reminder-sync-details {
+  display: grid;
+  gap: 10px;
+  padding: 18px 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.reminder-sync-details > div {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+.reminder-sync-details dt {
+  font-weight: 600;
+}
+.reminder-sync-details dd {
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.reminder-hint {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+.reminder-settings h3 {
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+.settings-grid .reminder-time-label {
+  font-size: 14px;
+}
+@media (max-width: 600px) {
+  .reminder-actions .button {
+    width: 100%;
+    justify-content: center;
+  }
+}
