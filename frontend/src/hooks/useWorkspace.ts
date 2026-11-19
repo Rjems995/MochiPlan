@@ -10,6 +10,7 @@ import {
 } from "../model";
 import { seed } from "../seed";
 import { loadData, saveData } from "../storage";
+import { duplicateEntries } from "../series";
 
 export function useWorkspace(notify: (text: string) => void) {
   const [data, setData] = useState<AppData | null>(null);
@@ -181,7 +182,7 @@ export function useWorkspace(notify: (text: string) => void) {
       id: uid(),
       name: `${s.name} (copy)`,
       updatedAt: Date.now(),
-      entries: s.entries.map((e) => ({ ...e, id: uid() })),
+      entries: duplicateEntries(s.entries, uid),
       design: {
         ...s.design,
         stickers: s.design.stickers.map((st) => ({ ...st, id: uid() })),

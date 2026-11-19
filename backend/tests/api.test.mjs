@@ -15,6 +15,74 @@ const headers = {
   "Content-Type": "application/json",
 };
 
+test("scoped recurring edits and rescheduled occurrences round-trip through the API", async (t) => {
+  const base = await start(t),
+    data = workspace(),
+    s = data.schedules[0],
+    entry = s.entries[0];
+  entry.seriesId = entry.id;
+  entry.endsOn = "2026-11-22";
+  entry.cancelledDates = ["2026-11-16"];
+  s.entries.push(
+    {
+      ...entry,
+      id: "future-phase",
+      startsOn: "2026-11-23",
+      endsOn: undefined,
+      start: 660,
+      end: 720,
+      cancelledDates: [],
+    },
+    {
+      ...entry,
+      id: "replacement",
+      date: "2026-11-18",
+      day: 2,
+      endsOn: undefined,
+      sourceId: entry.id,
+      originalDate: "2026-11-16",
+      cancelledDates: [],
+    },
+  );
+  assert.equal(
+    (
+      await fetch(base + "/api/workspace", {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ version: 1, revision: 0, data }),
+      })
+    ).status,
+    201,
+  );
+  const restored = (
+    await (await fetch(base + "/api/workspace", { headers })).json()
+  ).data;
+  assert.deepEqual(restored, JSON.parse(JSON.stringify(data)));
+  for (const mutate of [
+    (s) => (s.entries[1].startsOn = "2026-11-22"),
+    (s) => (s.entries[2].sourceId = "missing"),
+    (s) => (s.entries[2].originalDate = "2026-11-17"),
+    (s) => (s.entries[0].cancelledDates = []),
+  ]) {
+    const invalid = structuredClone(data);
+    mutate(invalid.schedules[0]);
+    assert.equal(
+      (
+        await fetch(base + "/api/workspace", {
+          method: "PUT",
+          headers,
+          body: JSON.stringify({ version: 1, revision: 1, data: invalid }),
+        })
+      ).status,
+      400,
+    );
+  }
+  assert.deepEqual(
+    (await (await fetch(base + "/api/workspace", { headers })).json()).data,
+    restored,
+  );
+});
+
 test("dated calendars persist through the workspace API", async (t) => {
   const base = await start(t);
   const data = workspace();

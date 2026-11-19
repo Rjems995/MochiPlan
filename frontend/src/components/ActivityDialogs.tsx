@@ -4,6 +4,7 @@ import { CalendarDialog } from "./CalendarDialog";
 import { EntryForm } from "./EntryForm";
 import { ExportModal } from "./ExportModal";
 import { Modal } from "./Modal";
+import { ScopeChangeDialog } from "./ScopeChangeDialog";
 export function ActivityDialogs() {
   const {
     active,
@@ -27,11 +28,13 @@ export function ActivityDialogs() {
       canvasRef,
       canvasHourHeight,
       setExportOpen,
+      pendingEdit,
     },
     feedback: { notify },
   } = useAppContext();
   return (
     <>
+      {pendingEdit && <ScopeChangeDialog />}
       {calendarOpen && (
         <CalendarDialog
           key={active.id}
@@ -63,7 +66,11 @@ export function ActivityDialogs() {
       {deleteEntry && (
         <Modal
           title="Let this little activity go?"
-          subtitle="You can bring it back with Undo."
+          subtitle={
+            active.entries.find((e) => e.id === deleteEntry)?.date
+              ? "You can bring it back with Undo."
+              : "This removes the entire repeating series. To skip one date, cancel that occurrence instead. You can bring it back with Undo."
+          }
           onClose={() => setDeleteEntry(null)}
         >
           <div className="modal-actions">

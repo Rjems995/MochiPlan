@@ -1,4 +1,5 @@
 import { HttpError } from "./errors.mjs";
+import { validSeriesMetadata } from "./series-validation.mjs";
 
 const object = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 const text = (v, max = 10000) => typeof v === "string" && v.length <= max;
@@ -127,6 +128,10 @@ export function validateWorkspace(body) {
         "A cancelled class date is invalid.",
       );
     }
+    ensure(
+      validSeriesMetadata(s.entries, date, weekday),
+      "The recurring activity data is invalid.",
+    );
     const a = s.design;
     ensure(
       object(a) &&

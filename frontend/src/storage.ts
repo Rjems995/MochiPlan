@@ -1,5 +1,6 @@
 import Dexie, { type Table } from "dexie";
-import type { AppData } from "./model";
+import type { AppData, Entry } from "./model";
+import { validSeriesMetadata } from "./series.ts";
 import { isCalendarDate, weekdayForDate } from "./calendar.ts";
 class MochiDatabase extends Dexie {
   state!: Table<{ id: string; data: AppData }>;
@@ -130,6 +131,9 @@ export function validateBackup(value: unknown): AppData {
         throw Error("A cancelled class date in the backup is invalid.");
     }
   }
+  for (const schedule of d.schedules as Record<string, unknown>[])
+    if (!validSeriesMetadata(schedule.entries as Entry[]))
+      throw Error("The recurring activity data in the backup is invalid.");
   const text = (v: unknown): v is string => typeof v === "string";
   const number = (v: unknown): v is number =>
     typeof v === "number" && Number.isFinite(v);

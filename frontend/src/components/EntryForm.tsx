@@ -19,6 +19,14 @@ import {
   occurrenceStatus,
   shiftCancellationWeekday,
 } from "../calendar";
+import {
+  isRecurring,
+  originalOccurrence,
+  sourceEntry,
+  type EditScope,
+  type EditSelection,
+} from "../series";
+import { EditScopeControl } from "./EditScopeControl";
 export function EntryForm({
   schedule,
   entry,
@@ -37,7 +45,7 @@ export function EntryForm({
   entry: Entry | null;
   initialDay?: number;
   initialStart?: number;
-  onSave: (entries: Entry[]) => void;
+  onSave: (entries: Entry[], selection?: EditSelection) => void;
   onDelete: (id: string) => void;
   onDuplicate: (e: Entry) => void;
   onClose: () => void;
@@ -61,13 +69,52 @@ export function EntryForm({
     initialDate ||
     entry?.date ||
     dateForWeekday(new Date(), entry?.day ?? initialDay, weekStart);
-  const [recurrence, setRecurrence] = useState<"weekly" | "once">(
+  const recurring = !!entry && isRecurring(entry);
+  const [scope, setScope] = useState<EditScope>(
+    entry?.sourceId ? "date" : "series",
+  );
+  const [repeatChoice, setRecurrence] = useState<"weekly" | "once">(
     entry?.date ||
       (!entry && (initialOnce || schedule.type === "Exam schedule"))
       ? "once"
       : "weekly",
   );
+  const recurrence = recurring
+    ? scope === "date"
+      ? "once"
+      : "weekly"
+    : repeatChoice;
   const [eventDate, setEventDate] = useState(entry?.date || occurrenceDate);
+  function changeScope(next: EditScope) {
+    if (entry && (scope === "date") !== (next === "date")) {
+      const previous =
+        entry.sourceId && scope !== "date"
+          ? sourceEntry(schedule, entry)
+          : entry;
+      const pattern =
+        entry.sourceId && next !== "date"
+          ? sourceEntry(schedule, entry)
+          : entry;
+      setTitle((value) => (value === previous.title ? pattern.title : value));
+      if (
+        start === timeValue(previous.start) &&
+        end === timeValue(previous.end)
+      ) {
+        setStart(timeValue(pattern.start));
+        setEnd(timeValue(pattern.end));
+      }
+      setLocation((value) =>
+        value === previous.location ? pattern.location : value,
+      );
+      setInstructor((value) =>
+        value === previous.instructor ? pattern.instructor : value,
+      );
+      setNotes((value) => (value === previous.notes ? pattern.notes : value));
+      setColor((value) => (value === previous.color ? pattern.color : value));
+      setDays([next === "date" ? weekdayForDate(eventDate) : pattern.day]);
+    }
+    setScope(next);
+  }
   const [confirmCancellation, setConfirmCancellation] = useState(false);
   const candidates = (
     recurrence === "once"
@@ -98,8 +145,15 @@ export function EntryForm({
   }));
   const conflict = candidates.some((a) =>
     candidateConflicts(
-      schedule,
-      a,
+      recurring && scope === "date" && a.date === occurrenceDate
+        ? {
+            ...schedule,
+            entries: schedule.entries.filter((e) => e.id !== entry!.id),
+          }
+        : schedule,
+      recurring && scope === "date" && !entry!.sourceId
+        ? { ...a, id: "scope-preview" }
+        : a,
       a.date || dateForWeekday(occurrenceDate, a.day, weekStart),
     ),
   );
@@ -141,9 +195,17 @@ export function EntryForm({
               id: entry?.id || uid(),
               title: title.trim(),
             })),
+            recurring ? { scope, occurrenceDate } : undefined,
           );
         }}
       >
+        {recurring && (
+          <EditScopeControl
+            value={scope}
+            date={originalOccurrence(schedule, entry!, occurrenceDate)}
+            onChange={changeScope}
+          />
+        )}
         <label className="field-label">
           What’s the plan?
           <input
@@ -154,19 +216,21 @@ export function EntryForm({
             placeholder="e.g. Design principles"
           />
         </label>
-        <label className="field-label">
-          Repeats
-          <select
-            aria-label="Activity recurrence"
-            value={recurrence}
-            onChange={(ev) =>
-              setRecurrence(ev.target.value as "weekly" | "once")
-            }
-          >
-            <option value="weekly">Every week</option>
-            <option value="once">On a specific date</option>
-          </select>
-        </label>
+        {!recurring && (
+          <label className="field-label">
+            Repeats
+            <select
+              aria-label="Activity recurrence"
+              value={recurrence}
+              onChange={(ev) =>
+                setRecurrence(ev.target.value as "weekly" | "once")
+              }
+            >
+              <option value="weekly">Every week</option>
+              <option value="once">On a specific date</option>
+            </select>
+          </label>
+        )}
         {recurrence === "once" ? (
           <label className="field-label">
             Event date

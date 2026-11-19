@@ -4,6 +4,7 @@ import { format, parseISO } from "date-fns";
 import { type Schedule, type Holiday, uid } from "../model";
 import { isCalendarDate } from "../calendar";
 import { Modal } from "./Modal";
+import { replacementFor } from "../series";
 
 export function CalendarDialog({
   schedule,
@@ -29,7 +30,9 @@ export function CalendarDialog({
   const [error, setError] = useState("");
   const cancellations = entries
     .flatMap((entry) =>
-      (entry.cancelledDates || []).map((date) => ({ entry, date })),
+      (entry.cancelledDates || [])
+        .filter((date) => !replacementFor(entries, entry.id, date))
+        .map((date) => ({ entry, date })),
     )
     .sort((a, b) => a.date.localeCompare(b.date));
   return (

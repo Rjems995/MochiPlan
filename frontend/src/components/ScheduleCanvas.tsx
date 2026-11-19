@@ -22,6 +22,7 @@ import {
   dateForWeekday,
   entriesOnDate,
   cancelledOnDate,
+  rescheduledOnDate,
   holidaysOnDate,
   outsideTerm,
   conflictsOnDate,
@@ -39,7 +40,7 @@ type Props = {
   onDay: (d: number, date?: string) => void;
   onEdit: (e: Entry, date?: string) => void;
   onAdd: (day: number, start?: number, date?: string) => void;
-  onResize: (id: string, end: number) => void;
+  onResize: (id: string, end: number, date?: string) => void;
   onSticker: (id: string, patch: Partial<Sticker>) => void;
   selectedSticker: string | null;
   onSelectSticker: (id: string) => void;
@@ -175,6 +176,7 @@ function Block({
               ) *
                 15;
             resize.current = null;
+            if (block.current) block.current.style.height = `${height}px`;
             onResize(Math.max(entry.start + 15, Math.min(1440, end)));
           }}
           onPointerCancel={() => {
@@ -418,6 +420,7 @@ export function ScheduleCanvas({
             v < 5 ||
             entriesOnDate(schedule, keyFor(v)).length ||
             cancelledOnDate(schedule, keyFor(v)).length ||
+            rescheduledOnDate(schedule, keyFor(v)).length ||
             holidaysOnDate(schedule, keyFor(v)).length,
         );
   const conflicting = renderedDates.flatMap((date) =>
@@ -446,6 +449,17 @@ export function ScheduleCanvas({
             onClick={() => interactive && onEdit(e, key)}
           >
             {e.title} · cancelled
+          </button>
+        ))}
+        {rescheduledOnDate(schedule, key).map((e) => (
+          <button
+            key={e.id}
+            className="rescheduled-note"
+            aria-label={`Edit rescheduled ${e.title} on ${e.date}`}
+            title={`${e.title} moved to ${format(parseISO(e.date!), "MMM d, yyyy")}`}
+            onClick={() => interactive && onEdit(e, e.date)}
+          >
+            {e.title} · moved to {format(parseISO(e.date!), "MMM d")}
           </button>
         ))}
       </div>
@@ -595,7 +609,7 @@ export function ScheduleCanvas({
                       radius={d.radius}
                       fontSize={d.fontSize}
                       onEdit={() => interactive && onEdit(e, keyFor(v))}
-                      onResize={(end) => onResize(e.id, end)}
+                      onResize={(end) => onResize(e.id, end, keyFor(v))}
                       interactive={interactive}
                       conflict={conflicting.includes(e.id)}
                       displayScale={displayScale}
@@ -630,7 +644,8 @@ export function ScheduleCanvas({
             !renderedDates.some(
               (date) =>
                 holidaysOnDate(schedule, date).length ||
-                cancelledOnDate(schedule, date).length,
+                cancelledOnDate(schedule, date).length ||
+                rescheduledOnDate(schedule, date).length,
             ) && (
               <p className="empty-day">
                 {renderedDates.every((date) => outsideTerm(schedule, date))
@@ -643,7 +658,8 @@ export function ScheduleCanvas({
               (v) =>
                 entriesOnDate(schedule, keyFor(v)).length ||
                 holidaysOnDate(schedule, keyFor(v)).length ||
-                cancelledOnDate(schedule, keyFor(v)).length,
+                cancelledOnDate(schedule, keyFor(v)).length ||
+                rescheduledOnDate(schedule, keyFor(v)).length,
             )
             .map((v) => {
               const entries = entriesOnDate(schedule, keyFor(v));

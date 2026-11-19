@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { TemplatePreview } from "../components/TemplatePreview";
 import { useAppContext } from "../context/AppContext";
+import { logicalActivityCount } from "../series";
 import { getTheme } from "../model";
 export function SchedulesPage() {
   const {
@@ -95,7 +96,7 @@ export function SchedulesPage() {
               <button onClick={() => chooseSchedule(s.id)}>
                 <h3>{s.name}</h3>
                 <p>
-                  {s.type} · {s.entries.length} activities
+                  {s.type} · {logicalActivityCount(s.entries)} activities
                 </p>
                 <small>Edited {format(s.updatedAt, "MMM d, h:mm a")}</small>
               </button>

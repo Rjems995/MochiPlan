@@ -57,6 +57,12 @@ export function occurrenceStatus(
 ): OccurrenceStatus {
   if (entry.date ? entry.date !== date : entry.day !== weekdayForDate(date))
     return "none";
+  if (
+    !entry.date &&
+    ((entry.startsOn && date < entry.startsOn) ||
+      (entry.endsOn && date > entry.endsOn))
+  )
+    return "none";
   if (!entry.date && outsideTerm(schedule, date)) return "outside-term";
   if (entry.cancelledDates?.includes(date)) return "cancelled";
   if (!entry.date && holidaysOnDate(schedule, date).length) return "holiday";
@@ -69,7 +75,16 @@ export function entriesOnDate(schedule: Schedule, date: string): Entry[] {
 }
 export function cancelledOnDate(schedule: Schedule, date: string): Entry[] {
   return schedule.entries.filter(
-    (e) => occurrenceStatus(schedule, e, date) === "cancelled",
+    (e) =>
+      occurrenceStatus(schedule, e, date) === "cancelled" &&
+      !schedule.entries.some(
+        (other) => other.sourceId === e.id && other.originalDate === date,
+      ),
+  );
+}
+export function rescheduledOnDate(schedule: Schedule, date: string): Entry[] {
+  return schedule.entries.filter(
+    (e) => e.originalDate === date && e.date && e.date !== date,
   );
 }
 export function conflictsOnDate(schedule: Schedule, date: string): Entry[] {
@@ -139,10 +154,15 @@ export function nextOccurrence(
       occurrenceStatus(schedule, entry, entry.date) === "scheduled"
       ? { entry, date: entry.date }
       : null;
-  let cursor =
-    schedule.termStart && schedule.termStart > from ? schedule.termStart : from;
+  let cursor = [from, schedule.termStart || from, entry.startsOn || from]
+    .sort()
+    .at(-1)!;
+  const end = [
+    schedule.termEnd || "9999-12-31",
+    entry.endsOn || "9999-12-31",
+  ].sort()[0];
   cursor = shiftDate(cursor, (entry.day - weekdayForDate(cursor) + 7) % 7);
-  while (cursor && (!schedule.termEnd || cursor <= schedule.termEnd)) {
+  while (cursor && cursor <= end) {
     const status = occurrenceStatus(schedule, entry, cursor);
     if (status === "scheduled" && (cursor !== from || entry.end > minutes))
       return { entry, date: cursor };

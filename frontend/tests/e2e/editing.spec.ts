@@ -30,6 +30,9 @@ test("drag changes day and time; resizing changes duration; overlap stays readab
     { steps: 12 },
   );
   await page.mouse.up();
+  await expect(page.locator(".modal-backdrop")).toHaveCSS("opacity", "1");
+  await page.getByRole("radio", { name: "Entire series", exact: true }).check();
+  await page.getByRole("button", { name: "Apply change", exact: true }).click();
   await expect(
     page
       .locator(".canvas-inner .day-column")
@@ -72,6 +75,9 @@ test("drag changes day and time; resizing changes duration; overlap stays readab
     { steps: 6 },
   );
   await page.mouse.up();
+  await expect(page.locator(".modal-backdrop")).toHaveCSS("opacity", "1");
+  await page.getByRole("radio", { name: "Entire series", exact: true }).check();
+  await page.getByRole("button", { name: "Apply change", exact: true }).click();
   await expect
     .poll(() =>
       moved.evaluate(

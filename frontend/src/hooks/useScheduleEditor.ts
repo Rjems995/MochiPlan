@@ -14,7 +14,7 @@ import {
   dateKey,
   entriesOnDate,
   initialCalendarDate,
-  shiftCancellationWeekday,
+  shiftDate,
   viewDates,
   weekdayForDate,
 } from "../calendar";
@@ -29,6 +29,12 @@ import {
 } from "../model";
 import type { NavigationController } from "./useNavigation";
 import type { WorkspaceController } from "./useWorkspace";
+import {
+  editOccurrence,
+  deleteActivity as removeActivity,
+  type EditSelection,
+  type EditScope,
+} from "../series";
 export function useScheduleEditor(
   workspace: WorkspaceController,
   navigation: NavigationController,
@@ -51,6 +57,11 @@ export function useScheduleEditor(
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [deleteEntry, setDeleteEntry] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
+  const [pendingEdit, setPendingEdit] = useState<{
+    entry: Entry;
+    edited: Entry;
+    date: string;
+  } | null>(null);
   const [selectedSticker, setSelectedSticker] = useState<string | null>(null);
   const [tools, setTools] = useState(() => window.innerWidth > 850);
   const [canvasScale, setCanvasScale] = useState(1);
@@ -104,33 +115,71 @@ export function useScheduleEditor(
     const entry = event.active.data.current?.entry as Entry | undefined;
     const target = event.over?.data.current?.day as number | undefined;
     if (!entry || target === undefined) return;
+    const date = entry.date || dateForWeekday(week, entry.day, p!.weekStart);
+    const moved = {
+      ...moveEntry(
+        entry,
+        target,
+        (event.delta.y / canvasScale / canvasHourHeight) * 60,
+        0,
+        1440,
+      ),
+      date: dateForWeekday(week, target, p!.weekStart),
+      cancelledDates: [],
+    };
+    requestChange(entry, moved, date);
+  }
+  function requestChange(entry: Entry, edited: Entry, date: string) {
+    if (
+      entry.day === edited.day &&
+      entry.start === edited.start &&
+      entry.end === edited.end &&
+      (!entry.date || entry.date === edited.date)
+    )
+      return;
+    if (!entry.date) setPendingEdit({ entry, edited, date });
+    else
+      updateSchedule((s) => ({
+        ...s,
+        entries: editOccurrence(
+          s,
+          entry.id,
+          edited,
+          { scope: "date", occurrenceDate: date },
+          p!.weekStart,
+          uid,
+        ),
+      }));
+  }
+  function applyPendingEdit(scope: EditScope) {
+    if (!pendingEdit) return;
     updateSchedule((s) => ({
       ...s,
-      entries: s.entries.map((e) => {
-        if (e.id !== entry.id) return e;
-        const moved = moveEntry(
-          e,
-          target,
-          (event.delta.y / canvasScale / canvasHourHeight) * 60,
-          0,
-          1440,
-        );
-        if (e.date)
-          return {
-            ...moved,
-            date: dateForWeekday(week, target, data!.preferences.weekStart),
-            cancelledDates: [],
-          };
-        return {
-          ...moved,
-          cancelledDates: shiftCancellationWeekday(
-            e,
-            target,
-            data!.preferences.weekStart,
-          ),
-        };
-      }),
+      entries: editOccurrence(
+        s,
+        pendingEdit.entry.id,
+        pendingEdit.edited,
+        { scope, occurrenceDate: pendingEdit.date },
+        p!.weekStart,
+        uid,
+      ),
     }));
+    setPendingEdit(null);
+    if (scope === "future") {
+      let date =
+        pendingEdit.edited.date ||
+        dateForWeekday(pendingEdit.date, pendingEdit.edited.day, p!.weekStart);
+      if (date < pendingEdit.date) date = shiftDate(date, 7);
+      setWeek(parseISO(date));
+      setDay(pendingEdit.edited.day);
+    }
+    notify(
+      scope === "date"
+        ? "Only this date has changed."
+        : scope === "future"
+          ? "This and future dates have changed."
+          : "Your entire series has been updated.",
+    );
   }
   const todayDay = (now.getDay() + 6) % 7;
   const weekStart = startOfWeek(week, {
@@ -195,12 +244,20 @@ export function useScheduleEditor(
               start,
               date: date || dateForWeekday(week, day, p.weekStart),
             }),
-          onResize: (id: string, end: number) => {
+          onResize: (id: string, end: number, date?: string) => {
             ignoreClick.current = Date.now() + 300;
-            updateSchedule((s) => ({
-              ...s,
-              entries: s.entries.map((e) => (e.id === id ? { ...e, end } : e)),
-            }));
+            const entry = active.entries.find((e) => e.id === id);
+            const bounded = entry
+              ? Math.max(entry.start + 15, Math.min(1440, end))
+              : end;
+            if (entry && bounded !== entry.end)
+              requestChange(
+                entry,
+                { ...entry, end: bounded, date: entry.date || date },
+                date ||
+                  entry.date ||
+                  dateForWeekday(week, entry.day, p.weekStart),
+              );
           },
           onSticker: (id: string, patch: Partial<Sticker>) =>
             design({
@@ -245,17 +302,39 @@ export function useScheduleEditor(
         : "Only this occurrence has been cancelled.",
     );
   }
-  function saveEntries(entries: Entry[]) {
+  function saveEntries(entries: Entry[], selection?: EditSelection) {
     if (!editor) return;
 
     updateSchedule((s) => ({
       ...s,
       entries: editor.entry
-        ? s.entries.map((e) => (e.id === editor.entry!.id ? entries[0] : e))
+        ? editOccurrence(
+            s,
+            editor.entry.id,
+            entries[0],
+            selection || {
+              scope: "series",
+              occurrenceDate:
+                editor.date ||
+                entries[0].date ||
+                dateForWeekday(week, editor.day, p!.weekStart),
+            },
+            p!.weekStart,
+            uid,
+          )
         : [...s.entries, ...entries],
     }));
     if (entries[0]?.date) {
       setWeek(parseISO(entries[0].date));
+      setDay(entries[0].day);
+    } else if (selection?.scope === "future") {
+      let date = dateForWeekday(
+        selection.occurrenceDate,
+        entries[0].day,
+        p!.weekStart,
+      );
+      if (date < selection.occurrenceDate) date = shiftDate(date, 7);
+      setWeek(parseISO(date));
       setDay(entries[0].day);
     }
     setEditor(null);
@@ -275,6 +354,9 @@ export function useScheduleEditor(
           id: uid(),
           title: `${e.title} (copy)`,
           cancelledDates: [],
+          seriesId: undefined,
+          sourceId: undefined,
+          originalDate: undefined,
         },
       ],
     }));
@@ -284,7 +366,7 @@ export function useScheduleEditor(
   function deleteActivity() {
     updateSchedule((s) => ({
       ...s,
-      entries: s.entries.filter((e) => e.id !== deleteEntry),
+      entries: removeActivity(s.entries, deleteEntry!),
     }));
     setDeleteEntry(null);
     setEditor(null);
@@ -331,6 +413,9 @@ export function useScheduleEditor(
     saveEntries,
     duplicateEntry,
     deleteActivity,
+    pendingEdit,
+    setPendingEdit,
+    applyPendingEdit,
   };
 }
 export type ScheduleEditorController = ReturnType<typeof useScheduleEditor>;

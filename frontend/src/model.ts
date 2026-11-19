@@ -13,6 +13,11 @@ export type Entry = {
   color: string;
   date?: string;
   cancelledDates?: string[];
+  seriesId?: string;
+  startsOn?: string;
+  endsOn?: string;
+  sourceId?: string;
+  originalDate?: string;
 };
 export type Holiday = {
   id: string;
@@ -223,6 +228,22 @@ export const parseTime = (value: string) => {
 export function overlaps(a: Entry, b: Entry) {
   if (a.date && b.date && a.date !== b.date) return false;
   const date = a.date || b.date;
+  if (
+    date &&
+    [a, b].some(
+      (e) =>
+        !e.date &&
+        ((e.startsOn && date < e.startsOn) || (e.endsOn && date > e.endsOn)),
+    )
+  )
+    return false;
+  if (
+    !a.date &&
+    !b.date &&
+    ((a.endsOn && b.startsOn && a.endsOn < b.startsOn) ||
+      (b.endsOn && a.startsOn && b.endsOn < a.startsOn))
+  )
+    return false;
   if (
     date &&
     (a.cancelledDates?.includes(date) || b.cancelledDates?.includes(date))
