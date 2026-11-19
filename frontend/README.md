@@ -56,7 +56,11 @@ Week, day, month and list views, upcoming activities, reminders, and exports all
 
 ## Data and reminders
 
-The application has no account and normal editing has no server dependency. Plans are stored in this browser on this device. Settings also offers manual save/restore through the companion backend. Clearing site data clears local plans and the browser’s server-backup key; download a full backup before clearing data or moving devices. Browser storage capacity and persistence depend on the browser.
+The application has no account and normal editing has no server dependency. Plans are stored in this browser on this device. Automatic server backups are enabled by default and run after edits settle, at most once a minute while the app is open and the companion backend is available. Failures retry with backoff and on reconnection. Settings shows backup status and the last successful server timestamp, offers manual save/restore, and lets you disable automation for this browser. A conflicting server head pauses automatic writes until an explicit save or restore resolves it.
+
+Backup history lists the latest 30 server versions with timestamps and workspace counts. Restoring keeps a local safety copy of current plans; server restores also save pending current edits before creating a new head from the chosen version. The local safety copy is available offline in history, including after file imports. Failed restores do not replace local plans. Identical automatic backups and navigation-only changes do not create versions. Automatic-backup settings are device-local and are not changed by restoring a workspace.
+
+Clearing site data clears local plans and the browser’s server-backup key; download a full backup before clearing data or moving devices. Browser storage capacity and persistence depend on the browser, and background timers may delay automatic backups. No backups run after the app is closed.
 
 Reminders are optional and require notification permission. They run while the app is open; background timers may be suspended, and reminders cannot run after the app is closed. iOS notification support requires an installed web app. Settings includes these limitations, reminder timing controls, and a daily-overview notification action. There is no push server or closed-app reminder scheduler.
 
@@ -83,7 +87,8 @@ The production dependency audit has no known advisories at the time of verificat
 - `src/hooks/useScheduleEditor.ts`: calendar navigation, activities, cancellations, drag/resize, and canvas measurements.
 - `src/hooks/usePlannerManager.ts`, `useTaskManager.ts`, and `useTemplateBrowser.ts`: feature state and actions.
 - `src/hooks/useScheduleCollection.ts`: responsive gallery sizing and pagination.
-- `src/hooks/useBackups.ts`: file import, server backup, and workspace restoration.
+- `src/hooks/useBackups.ts`: file import, backup history, safety copies and workspace restoration.
+- `src/hooks/useAutomaticBackups.ts` and `src/services/automaticBackups.ts`: automatic scheduling, one queued writer, retries, conflict protection and persisted backup status.
 - `src/hooks/useAppPlatform.ts`, `useNavigation.ts`, and `useFeedback.ts`: browser/PWA events, reminders, navigation, and toast lifecycle.
 - `src/context/AppContext.ts`: the typed bridge between controllers and UI components. It is provided after the workspace is ready.
 - `src/components/AppShell.tsx`, `AppSidebar.tsx`, `AppHeader.tsx`, and `MobileNavigation.tsx`: the shared layout. Feature dialogs and template previews are separate components.

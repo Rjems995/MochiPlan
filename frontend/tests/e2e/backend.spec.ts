@@ -10,8 +10,10 @@ test("server backup saves and restores through the real backend without changing
   await once(server, "listening");
   const base = `http://127.0.0.1:${server.address().port}`;
   try {
-    await page.route("**/api/workspace", async (route) => {
-      const response = await route.fetch({ url: base + "/api/workspace" });
+    await page.route("**/api/workspace**", async (route) => {
+      const response = await route.fetch({
+        url: base + new URL(route.request().url()).pathname,
+      });
       await route.fulfill({ response });
     });
     await page.goto("/");
@@ -38,8 +40,8 @@ test("server backup saves and restores through the real backend without changing
     await page.getByRole("button", { name: "Back to my schedules" }).click();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await expect(profile).toHaveValue(original);
-    await page.unroute("**/api/workspace");
-    await page.route("**/api/workspace", (route) => route.abort());
+    await page.unroute("**/api/workspace**");
+    await page.route("**/api/workspace**", (route) => route.abort());
     await profile.fill("Still saved locally");
     await page
       .getByRole("button", { name: "Save a server backup", exact: true })

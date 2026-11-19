@@ -3,7 +3,7 @@ import type { AppData, Entry } from "./model";
 import { validSeriesMetadata } from "./series.ts";
 import { isCalendarDate, weekdayForDate } from "./calendar.ts";
 class MochiDatabase extends Dexie {
-  state!: Table<{ id: string; data: AppData }>;
+  state!: Table<{ id: string; data: AppData; savedAt?: string }>;
   constructor() {
     super("mochiplan");
     this.version(1).stores({ state: "id" });
@@ -22,6 +22,22 @@ export function saveData(data: AppData) {
     .then(() => {});
   queue = write;
   return write;
+}
+export type RestorePoint = { data: AppData; savedAt: string };
+export async function saveRestorePoint(data: AppData): Promise<RestorePoint> {
+  const savedAt = new Date().toISOString();
+  await queue.catch(() => {});
+  await db.state.put({ id: "restore-point", data, savedAt });
+  return { data, savedAt };
+}
+export async function loadRestorePoint(): Promise<RestorePoint | null> {
+  const record = await db.state.get("restore-point");
+  if (!record?.savedAt || !Number.isFinite(Date.parse(record.savedAt)))
+    return null;
+  return {
+    data: validateBackup({ version: 1, data: record.data }),
+    savedAt: record.savedAt,
+  };
 }
 export function download(url: string, name: string) {
   const a = document.createElement("a");

@@ -12,11 +12,13 @@ The API listens on `http://127.0.0.1:3001` by default. `npm run dev` at the root
 
 ## Routes
 
-| Method | Route            | Purpose                                        |
-| ------ | ---------------- | ---------------------------------------------- |
-| GET    | `/api/health`    | Returns the service health; no key required.   |
-| GET    | `/api/workspace` | Reads this browser’s saved server backup.      |
-| PUT    | `/api/workspace` | Creates or replaces a validated server backup. |
+| Method | Route                              | Purpose                                                                                   |
+| ------ | ---------------------------------- | ----------------------------------------------------------------------------------------- |
+| GET    | `/api/health`                      | Returns the service health; no key required.                                              |
+| GET    | `/api/workspace`                   | Reads this browser’s saved server backup.                                                 |
+| PUT    | `/api/workspace`                   | Creates or replaces a validated server backup.                                            |
+| GET    | `/api/workspace/history`           | Lists retained version metadata, newest first; returns an empty list for a new workspace. |
+| GET    | `/api/workspace/history/:revision` | Reads a retained workspace snapshot, or returns `404` when pruned.                        |
 
 Workspace routes require `Authorization: Bearer <64 hexadecimal characters>`. The frontend generates a random 256-bit key and keeps it in browser localStorage. Only its SHA-256 hash is stored in the database.
 
@@ -26,6 +28,7 @@ A PUT body has this shape:
 {
   "version": 1,
   "revision": 0,
+  "source": "automatic",
   "data": {
     "schedules": [],
     "activeId": "an-existing-planner-id",
@@ -41,17 +44,20 @@ Version 1 also accepts optional calendar metadata: planner `termStart`/`termEnd`
 
 Scoped edits add optional activity `seriesId`, inclusive `startsOn`/`endsOn` bounds for repeating phases, and `sourceId`/`originalDate` for single-date replacements. A replacement links to a repeating activity in the same series whose `cancelledDates` contains the original date. Invalid or orphaned links, duplicate replacements, and overlapping phases in one series are rejected. Older backups without these fields remain valid, and the SQLite schema is unchanged.
 
-Use revision `0` to create a backup. GET includes its current revision; send that revision to replace it. Successful writes increment the revision. Stale writes return `409` without replacing the newer backup. Invalid input returns `400`, unknown backups return `404`, missing keys return `401`, and bodies over 20 MiB return `413`.
+Use revision `0` to create a backup. GET includes its current revision; send that revision to replace it. Successful writes increment the revision. Optional `source` accepts `manual` (default), `automatic`, `before-restore`, or `restore`. Automatic and before-restore writes with identical content return the existing revision and timestamp with `unchanged: true`. The SHA-256 content hash ignores the active planner selection and schedule edit timestamps. Manual writes always create a version. Stale writes return `409` without replacing the newer backup. Invalid input returns `400`, unknown backups return `404`, missing keys return `401`, and bodies over 20 MiB return `413`.
+
+Snapshot responses include `contentHash`, `updatedAt`, `source`, and a `summary` of planners, logical activities and tasks. History returns `{ version: 1, revision, latest, versions, retentionLimit }`; metadata does not contain workspace data. Restoring uses normal revision-checked writes, preserving current plans with `before-restore` and then writing the selected snapshot with `restore`. A failed or conflicting restore leaves local plans unchanged. Older database heads migrate into history as `legacy` versions with their original revisions and timestamps.
 
 ## Storage and configuration
 
-SQLite data is written atomically to `backend/data/mochiplan.sqlite` with WAL journaling. This directory is ignored by Git. Backups are isolated by workspace key and survive server restarts. API responses are not cached.
+SQLite data is written atomically to `backend/data/mochiplan.sqlite` with WAL journaling. The head, history insertion and pruning commit in one transaction. The latest 30 versions per workspace are retained by default. This directory is ignored by Git. Backups are isolated by workspace key and survive server restarts. API responses are not cached.
 
 Optional process environment variables are listed in [.env.example](./.env.example). Set them in the shell, or launch Node with `node --env-file=.env src/server.mjs` from this folder. The npm commands read process environment variables; they do not automatically load `.env` files.
 
 - `HOST`: bind address, default `127.0.0.1`.
 - `PORT`: backend port, default `3001`; the root production runner defaults to `4173`.
 - `DATABASE_PATH`: SQLite database path.
+- `BACKUP_HISTORY_LIMIT`: retained versions per workspace, an integer from 1 to 100; default `30`.
 - `FRONTEND_DIST`: built frontend directory, default `frontend/dist`.
 - `ALLOWED_ORIGINS`: additional comma-separated browser origins accepted by the API’s origin check. The local development and preview origins are included by default.
 

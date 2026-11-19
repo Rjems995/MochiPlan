@@ -2,6 +2,7 @@ import { ScheduleCanvas } from "./components/ScheduleCanvas";
 
 import { ActivityDialogs } from "./components/ActivityDialogs";
 import { AppShell } from "./components/AppShell";
+import { BackupHistoryDialog } from "./components/BackupHistoryDialog";
 import { FeedbackToast } from "./components/FeedbackToast";
 import { HelpDialogs } from "./components/HelpDialogs";
 import { PlannerDialogs } from "./components/PlannerDialogs";
@@ -98,6 +99,7 @@ export default function App() {
             <TaskDialog />
             <HelpDialogs />
             <RestoreWorkspaceDialog />
+            <BackupHistoryDialog />
             <FeedbackToast />
             <div className="print-only">
               <ScheduleCanvas {...studio.canvasProps} interactive={false} />

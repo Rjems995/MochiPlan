@@ -39,6 +39,13 @@ export function validateWorkspace(body) {
       integer(body.revision, 0, Number.MAX_SAFE_INTEGER),
     "Choose a version 1 workspace with a valid revision.",
   );
+  ensure(
+    body.source === undefined ||
+      ["manual", "automatic", "before-restore", "restore"].includes(
+        body.source,
+      ),
+    "Choose a valid backup source.",
+  );
   const d = body.data;
   ensure(
     object(d) &&

@@ -77,8 +77,9 @@ export function createApp({
   frontendDist = resolve(backendRoot, "../frontend/dist"),
   allowedOrigins = [],
   maxBodyBytes = 20 * 1024 * 1024,
+  historyLimit = 30,
 } = {}) {
-  const store = new WorkspaceStore(databasePath);
+  const store = new WorkspaceStore(databasePath, { historyLimit });
   const origins = new Set([
     "http://127.0.0.1:5173",
     "http://localhost:5173",
@@ -98,13 +99,37 @@ export function createApp({
       if (url.pathname.startsWith("/api/") || url.pathname === "/api") {
         if (req.headers.origin && !origins.has(req.headers.origin))
           throw new HttpError(403, "This origin is not allowed.");
-        if (url.pathname !== "/api/workspace")
+        const historyRoute = url.pathname === "/api/workspace/history";
+        const versionRoute = /^\/api\/workspace\/history\/(\d+)$/.exec(
+          url.pathname,
+        );
+        if (url.pathname !== "/api/workspace" && !historyRoute && !versionRoute)
           throw new HttpError(404, "API route not found.");
         const match = /^Bearer ([a-f0-9]{64})$/i.exec(
           req.headers.authorization || "",
         );
         if (!match) throw new HttpError(401, "A workspace key is required.");
         const key = match[1];
+        if (historyRoute || versionRoute) {
+          if (req.method !== "GET") {
+            res.setHeader("Allow", "GET");
+            throw new HttpError(405, "Use GET for backup history.");
+          }
+          if (historyRoute) sendJson(res, 200, store.history(key));
+          else {
+            const revision = Number(versionRoute[1]);
+            if (!Number.isSafeInteger(revision) || revision < 1)
+              throw new HttpError(400, "Choose a valid backup version.");
+            const record = store.getVersion(key, revision);
+            if (!record)
+              throw new HttpError(
+                404,
+                "That backup version is no longer available.",
+              );
+            sendJson(res, 200, record);
+          }
+          return;
+        }
         if (req.method === "GET") {
           const record = store.get(key);
           if (!record)
@@ -121,7 +146,7 @@ export function createApp({
           sendJson(
             res,
             body.revision === 0 ? 201 : 200,
-            store.save(key, body.revision, data),
+            store.save(key, body.revision, data, body.source || "manual"),
           );
           return;
         }
@@ -207,6 +232,7 @@ if (
       .split(",")
       .filter(Boolean)
       .concat([`http://${host}:${port}`]),
+    historyLimit: Number(process.env.BACKUP_HISTORY_LIMIT || 30),
   });
   app.on("error", (error) => {
     console.error(error.message);

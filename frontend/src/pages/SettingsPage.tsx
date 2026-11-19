@@ -4,11 +4,11 @@ import {
   Bell,
   Cloud,
   Download,
-  LoaderCircle,
   MonitorDown,
   Share2,
 } from "lucide-react";
 import { Mochi } from "../components/Artwork";
+import { BackupSettings } from "../components/BackupSettings";
 import { useAppContext } from "../context/AppContext";
 import { type Preferences, themes } from "../model";
 import { downloadJSON } from "../storage";
@@ -24,13 +24,7 @@ export function SettingsPage() {
       installApp,
       setWelcome,
     },
-    backups: {
-      backupInput,
-      readBackupFile,
-      serverBackupBusy,
-      saveServerCopy,
-      readServerCopy,
-    },
+    backups: { backupInput, readBackupFile },
   } = useAppContext();
 
   return (
@@ -186,35 +180,7 @@ export function SettingsPage() {
             {saved}
           </span>
         </section>
-        <section className="content-card">
-          <h2>A little server backup</h2>
-          <p className="settings-description">
-            Save an extra copy of your planners, tasks, and preferences to your
-            MochiPlan server. Your offline workspace stays on this device.
-            Server backups are available to this browser while its site data is
-            kept.
-          </p>
-          <button
-            className="button secondary full-width"
-            disabled={serverBackupBusy}
-            onClick={saveServerCopy}
-          >
-            {serverBackupBusy ? (
-              <LoaderCircle className="spin" size={16} />
-            ) : (
-              <Cloud size={16} />
-            )}
-            Save a server backup
-          </button>
-          <button
-            className="button secondary full-width"
-            disabled={serverBackupBusy}
-            onClick={readServerCopy}
-          >
-            <Share2 size={16} />
-            Restore from server
-          </button>
-        </section>
+        <BackupSettings />
         <section className="content-card install-card">
           <Mochi flower />
           <h2>A little home on your homescreen</h2>

@@ -17,6 +17,7 @@ import "./workspace.css";
 import "./calendar.css";
 import "./polish.css";
 import "./scoped-edits.css";
+import "./backups.css";
 registerSW({
   immediate: true,
   onRegisteredSW(_url, registration) {

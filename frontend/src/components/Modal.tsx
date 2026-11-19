@@ -26,9 +26,8 @@ export function Modal({
           'button,input,select,textarea,[tabindex="0"]',
         ) || [],
       ).filter((e) => !e.hasAttribute("disabled") && e.offsetParent !== null);
-    focusable()
-      .find((e) => e.tagName === "INPUT")
-      ?.focus();
+    const items = focusable();
+    (items.find((e) => e.tagName === "INPUT") || items[0])?.focus();
     const key = (ev: KeyboardEvent) => {
       if (ev.key === "Escape") close.current();
       if (ev.key === "Tab") {
