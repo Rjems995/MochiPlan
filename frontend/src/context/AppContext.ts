@@ -1,5 +1,6 @@
 import { createContext, useContext } from "react";
 import type { AppPlatformController } from "../hooks/useAppPlatform";
+import type { AccountsController } from "../hooks/useAccounts";
 import type { BackgroundRemindersController } from "../hooks/useBackgroundReminders";
 import type { BackupsController } from "../hooks/useBackups";
 import type { FeedbackController } from "../hooks/useFeedback";
@@ -19,6 +20,7 @@ export type AppContextValue = {
   feedback: FeedbackController;
   navigation: NavigationController;
   platform: AppPlatformController;
+  accounts: AccountsController;
   reminders: BackgroundRemindersController;
   studio: ScheduleEditorController & {
     canvasProps: NonNullable<ScheduleEditorController["canvasProps"]>;

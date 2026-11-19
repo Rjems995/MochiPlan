@@ -41,7 +41,21 @@ Normal editing saves automatically to IndexedDB and works offline. **Automatic s
 
 Backups include planners, activities, semester dates, holidays, cancelled/rescheduled occurrences, designs, tasks and preferences. Identical automatic backups do not create extra versions; navigating between planners does not count as an edit. File backup/export controls remain available offline. Automatic-backup preferences apply to this browser and are separate from restored workspace preferences.
 
-The backend stores data in `backend/data/mochiplan.sqlite`, which Git ignores. Each browser uses its own random workspace key, stored in localStorage; the server stores a hash of that key. There is no account. Clearing the browser’s site data also removes its server-backup key, so keep a downloaded backup before clearing data or moving devices. Server backups require the backend to be running. Backups run while the app is open; browser background timers may delay them.
+The backend stores data in `backend/data/mochiplan.sqlite`, which Git ignores. Device-only workspaces use a random browser workspace key; the server stores its hash. Each account has a separate synced workspace and each local profile has separate backup/reminder settings. Clearing site data removes local plans, cached account edits and device backup keys, so download a backup first. Server backups require the backend to be running. Backups run while the app is open; browser background timers may delay them.
+
+## Optional accounts and cross-device sync
+
+Open **Settings → Your plans, wherever you are** to create a username/password account or sign in. No email service is required. Usernames use 3–32 letters, numbers or underscores; passwords use at least 12 characters. Save the recovery code shown once after sign-up. **Recover account** resets a forgotten password, replaces that code and signs out existing sessions.
+
+A new account copies this device’s current plans. Signing into an existing account opens its plans and retains the device-only workspace separately. Sign-out returns to those device-only plans and keeps the account’s local cache for later offline use. Multiple accounts keep separate local caches. Account sessions use HttpOnly cookies; passwords are salted and hashed on the server.
+
+Sync runs after edits settle, on reconnection/focus, and checks for account updates about every 15 seconds while the app is open. The editor header distinguishes **Saved locally** from **Synced**. **Sync this device** can be paused independently. Offline edits survive reloads and upload after reconnecting and signing in if the session expired.
+
+Enabled background reminders link to the account. A successfully synced schedule updates reminder jobs on every linked device even when those apps are closed; each device retains its time zone and reminder lead time. Account schedule changes and reminder-job invalidation commit together so a cancelled class cannot remain queued from an older account version. Local changes still need to reach the account before other devices or their reminder jobs can use them.
+
+Changes to separate tasks, planners, settings or activity series merge automatically. Overlapping changes pause sync and offer **Use this device’s version**, **Use account version**, or **Keep both sets of plans**. Keeping both copies differing planners/tasks and uses this device’s preferences. A previous local workspace is kept in **Backup history** before incoming changes are applied. Incoming sync waits while an edit form is open, and local-only uploads preserve undo history. Navigation, notification permission/reminder choices, backup settings and push subscriptions remain device-local.
+
+Both devices must use the **same reachable MochiPlan server**. `localhost` on a phone refers to the phone, so a computer’s localhost preview is only for local testing. For phone/computer use, host the Node server behind HTTPS, persist `backend/data`, set `HOST=0.0.0.0` when needed, add the public origin to `ALLOWED_ORIGINS`, and set `ACCOUNT_SECURE_COOKIES=true` in production. Keep the site and `/api` on the same origin. The app still runs without creating an account.
 
 ## Background reminders
 
@@ -62,6 +76,8 @@ Each device opts in separately and uses its own time zone. The server respects s
 **Reminders while open** remain available as an optional local fallback. Push and local reminders use matching IDs to avoid duplicate nudges. The worker opens the relevant planner and date when a notification is selected. Server jobs and recent delivery IDs persist across restarts; temporary errors retry briefly, expired subscriptions require reconnecting, and reminders more than five minutes overdue are skipped.
 
 ## Checks
+
+Account tests use separate browser contexts for phone and computer, including offline reloads, three-way merging, keep-both conflict resolution, profile isolation and recovery. Server tests cover session/CSRF checks, account isolation, expiry, rate limits and atomic account/reminder updates. No real user accounts are created by the tests.
 
 ```powershell
 npm test

@@ -1,0 +1,156 @@
+.account-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.account-heading > svg {
+  flex-shrink: 0;
+  color: var(--pink);
+  margin-top: 2px;
+}
+.settings-grid .account-heading h2 {
+  margin: 0 0 18px;
+}
+.account-description {
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.65;
+  margin-bottom: 20px;
+}
+.account-identity {
+  display: grid;
+  gap: 5px;
+  padding: 15px 0;
+}
+.account-identity strong {
+  font-size: 18px;
+}
+.account-identity span,
+.account-hint {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+.account-hint {
+  margin: 14px 0;
+}
+.account-modes {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.account-modes button {
+  font-size: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+.account-modes .selected {
+  color: var(--pink);
+  background: var(--pink-light);
+  border-color: var(--accent);
+}
+.settings-grid .account-form .field-label,
+.settings-grid .account-settings .toggle-row {
+  font-size: 14px;
+}
+.account-form input {
+  font-size: 16px;
+}
+.settings-grid .account-settings .button,
+.account-settings .text-button,
+.account-conflict-actions .button {
+  font-size: 14px;
+}
+.account-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.account-sync-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--page);
+  margin: 18px 0;
+}
+.account-sync-status > svg {
+  flex-shrink: 0;
+  color: var(--pink);
+  margin-top: 2px;
+}
+.account-sync-status p {
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+}
+.account-sync-status span {
+  display: block;
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 8px;
+  line-height: 1.6;
+}
+.account-notice {
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.65;
+  border-left: 3px solid var(--accent);
+  padding: 12px 14px;
+  background: var(--page);
+  margin: 16px 0;
+}
+.account-signout {
+  margin-top: 20px;
+}
+.account-recovery-code {
+  border: 1px dashed var(--accent);
+  border-radius: 12px;
+  padding: 18px;
+  background: var(--page);
+  overflow-wrap: anywhere;
+  font-size: 17px;
+  line-height: 1.6;
+}
+.account-conflict-counts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.account-conflict-counts > div {
+  display: grid;
+  gap: 6px;
+  font-size: 16px;
+}
+.account-conflict-counts span {
+  color: var(--muted);
+  font-size: 14px;
+}
+.account-conflict-actions {
+  display: grid;
+  gap: 10px;
+}
+.modal:has(.account-conflict-actions, .account-recovery-code)
+  .modal-heading
+  .eyebrow {
+  display: none;
+}
+.modal:has(.account-conflict-actions, .account-recovery-code) .modal-heading p {
+  font-size: 16px;
+  line-height: 1.65;
+  color: var(--muted);
+}
+@media (max-width: 600px) {
+  .account-actions .button {
+    width: 100%;
+    justify-content: center;
+  }
+  .account-modes button {
+    flex: 1;
+  }
+}

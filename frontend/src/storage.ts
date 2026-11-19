@@ -2,42 +2,77 @@ import Dexie, { type Table } from "dexie";
 import type { AppData, Entry } from "./model";
 import { validSeriesMetadata } from "./series.ts";
 import { isCalendarDate, weekdayForDate } from "./calendar.ts";
+import { activeProfile, workspaceRecord } from "./services/deviceScope.ts";
+export type SyncCheckpoint = {
+  id: string;
+  revision: number;
+  data: AppData | null;
+  syncedAt: string;
+};
 class MochiDatabase extends Dexie {
   state!: Table<{ id: string; data: AppData; savedAt?: string }>;
+  sync!: Table<SyncCheckpoint>;
   constructor() {
     super("mochiplan");
     this.version(1).stores({ state: "id" });
+    this.version(2).stores({ state: "id", sync: "id" });
   }
 }
 export const db = new MochiDatabase();
-export async function loadData(): Promise<AppData | undefined> {
-  const record = await db.state.get("workspace");
+export async function loadData(
+  profile = activeProfile(),
+): Promise<AppData | undefined> {
+  const record = await db.state.get(workspaceRecord(profile));
   return record?.data;
 }
 let queue = Promise.resolve();
-export function saveData(data: AppData) {
+export function saveData(data: AppData, profile = activeProfile()) {
   const write = queue
     .catch(() => {})
-    .then(() => db.state.put({ id: "workspace", data }))
+    .then(() => db.state.put({ id: workspaceRecord(profile), data }))
     .then(() => {});
   queue = write;
   return write;
 }
 export type RestorePoint = { data: AppData; savedAt: string };
-export async function saveRestorePoint(data: AppData): Promise<RestorePoint> {
+export async function saveRestorePoint(
+  data: AppData,
+  profile = activeProfile(),
+): Promise<RestorePoint> {
   const savedAt = new Date().toISOString();
   await queue.catch(() => {});
-  await db.state.put({ id: "restore-point", data, savedAt });
+  await db.state.put({
+    id: profile ? `restore-point:${profile}` : "restore-point",
+    data,
+    savedAt,
+  });
   return { data, savedAt };
 }
-export async function loadRestorePoint(): Promise<RestorePoint | null> {
-  const record = await db.state.get("restore-point");
+export async function loadRestorePoint(
+  profile = activeProfile(),
+): Promise<RestorePoint | null> {
+  const record = await db.state.get(
+    profile ? `restore-point:${profile}` : "restore-point",
+  );
   if (!record?.savedAt || !Number.isFinite(Date.parse(record.savedAt)))
     return null;
   return {
     data: validateBackup({ version: 1, data: record.data }),
     savedAt: record.savedAt,
   };
+}
+export function saveSyncCheckpoint(checkpoint: SyncCheckpoint, data?: AppData) {
+  const write = queue
+    .catch(() => {})
+    .then(() =>
+      db.transaction("rw", db.state, db.sync, async () => {
+        if (data)
+          await db.state.put({ id: workspaceRecord(checkpoint.id), data });
+        await db.sync.put(checkpoint);
+      }),
+    );
+  queue = write;
+  return write;
 }
 export function download(url: string, name: string) {
   const a = document.createElement("a");

@@ -48,7 +48,31 @@ Use revision `0` to create a backup. GET includes its current revision; send tha
 
 Snapshot responses include `contentHash`, `updatedAt`, `source`, and a `summary` of planners, logical activities and tasks. History returns `{ version: 1, revision, latest, versions, retentionLimit }`; metadata does not contain workspace data. Restoring uses normal revision-checked writes, preserving current plans with `before-restore` and then writing the selected snapshot with `restore`. A failed or conflicting restore leaves local plans unchanged. Older database heads migrate into history as `legacy` versions with their original revisions and timestamps.
 
+## Accounts and synchronization
+
+Accounts are optional and use usernames rather than email. Passwords are salted with Node scrypt (`N=131072`, `r=8`, `p=1`); at most two hashes run concurrently. Recovery codes contain 160 random bits, are stored only as hashes and rotate after each successful reset. Password resets revoke all existing sessions. Authentication attempts are limited in SQLite by username and remote IP over 15-minute windows. Forwarded IP headers are not trusted.
+
+| Method | Route                   | Purpose                                                                                   |
+| ------ | ----------------------- | ----------------------------------------------------------------------------------------- |
+| POST   | `/api/account/register` | Creates `{ username, password }`, a session and a one-time recovery code.                 |
+| POST   | `/api/account/login`    | Signs in with `{ username, password }`.                                                   |
+| POST   | `/api/account/recover`  | Resets with `{ username, password, recoveryCode }`; returns a fresh recovery code.        |
+| GET    | `/api/account/session`  | Current user, CSRF token and session expiration; no password hashes or workspace key.     |
+| DELETE | `/api/account/session`  | Revokes the current session and clears its cookie.                                        |
+| GET    | `/api/sync/workspace`   | Current account snapshot, or `{ version: 1, revision: 0, data: null }` for a new account. |
+| PUT    | `/api/sync/workspace`   | Validates and writes `{ version: 1, revision, data }` with optimistic revision checks.    |
+
+Sessions use 256-bit opaque cookies with HttpOnly, SameSite=Strict, a 30-day lifetime and only hashed tokens in SQLite. At most ten sessions per account are retained. HTTPS origins automatically receive Secure cookies; `NODE_ENV=production` or `ACCOUNT_SECURE_COOKIES=true` forces them behind a reverse proxy. Account mutations require an allowed Origin; authenticated mutations also require the session’s `X-Mochi-CSRF`. Sync requests require `X-Mochi-Account` matching the session user so a cookie changed in another tab cannot send one account’s plans into another account. A browser backup bearer key grants no account access.
+
+Each account has a private server-side workspace key and uses the same atomic version store and retention limit as backups. Conflicting writes return `409`; they never overwrite a newer head. The client keeps its previous server snapshot in IndexedDB for three-way merging, queues offline edits, and resolves overlapping series edits explicitly. Account payloads normalize selection/edit timestamps and exclude device notification choices. Local caches, device-only plans, backup keys and push choices are isolated by profile. No external identity or email service is required.
+
+Serve the app and API from one HTTPS origin reachable by every device. Configure `ALLOWED_ORIGINS` for that origin, set Secure cookies in production, and persist the SQLite directory. Accounts do not encrypt cached plans on a shared device; sign-out returns to device-only plans but retains the account cache for offline use. Recovery codes cannot be retrieved after the initial response.
+
+Authentication follows [OWASP password storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html) and [session cookie guidance](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html).
+
 ## Push reminders
+
+Account devices link through authenticated `PUT /api/account/reminder-device` with `{ deviceId, workspaceKey }`, the account ID header and CSRF token. The browser key proves control of the reminder device; only its hash is retained in the mapping, which cannot be reassigned to another account. Account writes update linked reminder schedules and invalidate pending jobs in the same SQLite transaction, preserving each device’s time zone and lead time. Linked device uploads always use the account’s latest schedule, so an older offline snapshot cannot revive a cancelled class. Removing a device removes its account link. Exceeding reminder-size limits pauses device reminders without blocking account sync.
 
 Set `VAPID_SUBJECT` to your real `mailto:` contact address or public HTTPS contact URL, then restart the server. A stable VAPID key pair is generated in `backend/data/push-keys.json` (or `VAPID_KEY_PATH`); keep this private file persistent and out of Git. Alternatively set both `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` to a matching key pair. Without a subject, push is disabled and existing editing, backups and local reminders continue to work. The development service worker is disabled; test push using `npm run build` and the root `npm run preview`, or an HTTPS production deployment.
 
@@ -82,6 +106,7 @@ Optional process environment variables are listed in [.env.example](./.env.examp
 - `PORT`: backend port, default `3001`; the root production runner defaults to `4173`.
 - `DATABASE_PATH`: SQLite database path.
 - `BACKUP_HISTORY_LIMIT`: retained versions per workspace, an integer from 1 to 100; default `30`.
+- `ACCOUNT_SECURE_COOKIES`: set to `true` for HTTPS deployment; also automatic for HTTPS browser origins or `NODE_ENV=production`.
 - `VAPID_SUBJECT`: real `mailto:` or public HTTPS contact; enables background reminders.
 - `VAPID_KEY_PATH`: optional persistent private key file; defaults beside the SQLite database, named `push-keys.json`.
 - `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`: optional existing matching keys, supplied together instead of the generated file.

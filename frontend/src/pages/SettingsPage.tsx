@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { Mochi } from "../components/Artwork";
 import { BackupSettings } from "../components/BackupSettings";
+import { AccountSettings } from "../components/AccountSettings";
 import { ReminderSettings } from "../components/ReminderSettings";
 import { useAppContext } from "../context/AppContext";
 import { type Preferences, themes } from "../model";
@@ -34,6 +35,7 @@ export function SettingsPage() {
         </div>
       </div>
       <div className="settings-grid">
+        <AccountSettings />
         <section className="content-card">
           <h2>A little about you</h2>
           <label className="field-label">

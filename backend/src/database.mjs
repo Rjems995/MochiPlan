@@ -112,7 +112,7 @@ export class WorkspaceStore {
       ? { version: 1, ...this.metadata(row), data: JSON.parse(row.data) }
       : null;
   }
-  save(key, expectedRevision, data, source = "manual") {
+  save(key, expectedRevision, data, source = "manual", afterWrite) {
     if (!["manual", "automatic", "before-restore", "restore"].includes(source))
       throw new HttpError(400, "Choose a valid backup source.");
     const text = JSON.stringify(data),
@@ -133,6 +133,7 @@ export class WorkspaceStore {
         previous.content_hash === contentHash &&
         ["automatic", "before-restore"].includes(source)
       ) {
+        afterWrite?.();
         this.db.exec("COMMIT");
         return { version: 1, ...this.metadata(previous), unchanged: true };
       }
@@ -151,6 +152,7 @@ export class WorkspaceStore {
         summary.tasks,
       );
       this.pruneVersions.run(hash, hash, this.historyLimit);
+      afterWrite?.();
       this.db.exec("COMMIT");
       return { version: 1, revision, updatedAt, contentHash, source, summary };
     } catch (error) {

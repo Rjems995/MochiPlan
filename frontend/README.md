@@ -56,7 +56,11 @@ Week, day, month and list views, upcoming activities, reminders, and exports all
 
 ## Data and reminders
 
-The application has no account and normal editing has no server dependency. Plans are stored in this browser on this device. Automatic server backups are enabled by default and run after edits settle, at most once a minute while the app is open and the companion backend is available. Failures retry with backoff and on reconnection. Settings shows backup status and the last successful server timestamp, offers manual save/restore, and lets you disable automation for this browser. A conflicting server head pauses automatic writes until an explicit save or restore resolves it.
+Normal editing has no server dependency. Device-only plans are stored in this browser, with optional username/password accounts for cross-device sync. **Settings → Your plans, wherever you are** provides sign-up, sign-in, one-time recovery codes, password recovery, device sync controls and sign-out. See [account setup and hosting](../README.md#optional-accounts-and-cross-device-sync). Both devices must reach the same server; localhost on one device is separate from localhost on another.
+
+Each account has its own IndexedDB workspace and server baseline. Edits save locally first, survive offline reloads, and sync after reconnection while the app is open. Independent changes merge; overlapping changes offer local/account/keep-both choices. Recurring series merge as atomic groups to preserve scoped edits and links. Remote updates wait while an edit form is open; uploading local-only edits preserves undo history. Before applying incoming data, the prior device workspace is saved in Backup history. Sign-out restores the separate device-only workspace, retains the account cache, and unsubscribes its device push reminders. Session credentials stay in HttpOnly cookies, with CSRF checks and per-account sync headers. Device notification and backup choices do not sync.
+
+Automatic browser-profile server backups are enabled by default and run after edits settle, at most once a minute while the app is open and the companion backend is available. Failures retry with backoff and on reconnection. Settings shows backup status and the last successful server timestamp, offers manual save/restore, and lets you disable automation for this browser. A conflicting backup head pauses automatic writes until an explicit save or restore resolves it.
 
 Backup history lists the latest 30 server versions with timestamps and workspace counts. Restoring keeps a local safety copy of current plans; server restores also save pending current edits before creating a new head from the chosen version. The local safety copy is available offline in history, including after file imports. Failed restores do not replace local plans. Identical automatic backups and navigation-only changes do not create versions. Automatic-backup settings are device-local and are not changed by restoring a workspace.
 
@@ -69,6 +73,8 @@ Device schedule sync is independent of automatic backups. It sends only calendar
 **Reminders while open** retain the existing local reminders and daily overview. A synced background subscription takes priority; local and push delivery share an ID and worker deduplication to avoid repeated nudges. Selecting a notification opens the relevant planner and calendar date. Background choices are device-local and are not enabled or disabled by restoring workspace backups. Subscription expiry or changed server signing keys require reconnecting; no permission prompt appears during automatic sync.
 
 ## Verification
+
+Background subscriptions for account profiles link to the account after opt-in. A synced account edit refreshes linked server reminder schedules even with those apps closed, while device time zones and lead times stay independent. Pending offline changes must reach account sync first.
 
 ```sh
 npm test
@@ -84,10 +90,13 @@ The production dependency audit has no known advisories at the time of verificat
 
 ## Source organization
 
-`src/App.tsx` composes the shared state, layout, pages, and dialogs. The UI and saved-data format remain the same.
+`src/App.tsx` composes shared state, account profiles, pages and dialogs. Version 1 workspace JSON remains compatible; IndexedDB adds a sync-baseline table and separate profile records.
 
 - `src/pages/`: the studio, overview, saved schedules, templates, tasks, and settings.
 - `src/hooks/useWorkspace.ts`: loading, automatic saves, preferences, schedule changes, and undo/redo.
+- `src/hooks/useAccounts.ts`: account sessions, recovery, profile switching and sync lifecycle.
+- `src/services/workspaceSync.ts`, `syncMerge.ts` and `accountApi.ts`: offline synchronization, three-way merging, conflict decisions and authenticated API calls.
+- `src/services/deviceScope.ts`: profile-specific storage names and browser backup/reminder keys.
 - `src/hooks/useScheduleEditor.ts`: calendar navigation, activities, cancellations, drag/resize, and canvas measurements.
 - `src/hooks/usePlannerManager.ts`, `useTaskManager.ts`, and `useTemplateBrowser.ts`: feature state and actions.
 - `src/hooks/useScheduleCollection.ts`: responsive gallery sizing and pagination.

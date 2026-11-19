@@ -11,9 +11,16 @@ import {
 import { seed } from "../seed";
 import { loadData, saveData } from "../storage";
 import { duplicateEntries } from "../series";
+import { activeProfile, deviceKey } from "../services/deviceScope";
 
 export function useWorkspace(notify: (text: string) => void) {
   const [data, setData] = useState<AppData | null>(null);
+  const [profileId, setProfileId] = useState<string | null>(activeProfile);
+  const [switchingProfile, setSwitchingProfile] = useState(false);
+  const currentData = useRef(data);
+  currentData.current = data;
+  const profileRef = useRef(profileId);
+  profileRef.current = profileId;
   const [loadError, setLoadError] = useState(false);
   const [saved, setSaved] = useState("Loading your little workspace…");
   const undo = useRef<Schedule[][]>([]);
@@ -21,11 +28,13 @@ export function useWorkspace(notify: (text: string) => void) {
   const [, setHistoryVersion] = useState(0);
   const saveVersion = useRef(0);
   useEffect(() => {
-    loadData()
+    loadData(profileId)
       .then((saved) => {
         const initial = saved || seed();
         try {
-          const prefs = localStorage.getItem("mochiplan-preferences");
+          const prefs = localStorage.getItem(
+            deviceKey("mochiplan-preferences", profileId),
+          );
           if (prefs)
             initial.preferences = {
               ...initial.preferences,
@@ -40,7 +49,7 @@ export function useWorkspace(notify: (text: string) => void) {
     if (!data) return;
     const version = ++saveVersion.current;
     setSaved("Saving your little changes…");
-    saveData(data)
+    saveData(data, profileId)
       .then(() => {
         if (version === saveVersion.current) setSaved("All changes saved");
       })
@@ -52,11 +61,11 @@ export function useWorkspace(notify: (text: string) => void) {
       });
     try {
       localStorage.setItem(
-        "mochiplan-preferences",
+        deviceKey("mochiplan-preferences", profileId),
         JSON.stringify(data.preferences),
       );
     } catch {}
-  }, [data, notify]);
+  }, [data, profileId, notify]);
   useEffect(() => {
     const before = (ev: BeforeUnloadEvent) => {
       if (saved.startsWith("Saving") || saved.startsWith("Could not")) {
@@ -196,10 +205,53 @@ export function useWorkspace(notify: (text: string) => void) {
     redo.current = [];
     setData(restored);
   }
+  async function switchProfile(id: string | null, initial?: AppData) {
+    setSwitchingProfile(true);
+    const previous = currentData.current,
+      previousProfile = profileRef.current;
+    try {
+      if (previous) await saveData(previous, previousProfile);
+      const next = (await loadData(id)) || structuredClone(initial || seed());
+      if (currentData.current !== previous)
+        throw Error(
+          "Your plans changed while switching workspaces. Try again after they finish saving.",
+        );
+      await saveData(next, id);
+      if (currentData.current !== previous)
+        throw Error(
+          "Your plans changed while switching workspaces. They are safe; try switching again after saving.",
+        );
+      if (id) localStorage.setItem("mochiplan-active-profile", id);
+      else localStorage.removeItem("mochiplan-active-profile");
+      profileRef.current = id;
+      currentData.current = next;
+      undo.current = [];
+      redo.current = [];
+      setProfileId(id);
+      setData(next);
+      setHistoryVersion((v) => v + 1);
+      return next;
+    } finally {
+      setSwitchingProfile(false);
+    }
+  }
+  function applySyncedData(expected: AppData, next: AppData) {
+    if (currentData.current !== expected) return false;
+    currentData.current = next;
+    undo.current = [];
+    redo.current = [];
+    setData(next);
+    setHistoryVersion((v) => v + 1);
+    return true;
+  }
   const canUndo = undo.current.length > 0;
   const canRedo = redo.current.length > 0;
   return {
     data,
+    profileId,
+    switchingProfile,
+    switchProfile,
+    applySyncedData,
     loadError,
     saved,
     setData,

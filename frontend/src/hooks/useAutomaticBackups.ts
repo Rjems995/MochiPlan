@@ -3,9 +3,10 @@ import type { AppData } from "../model";
 import { AutomaticBackups } from "../services/automaticBackups";
 import {
   parseBackupMetadata,
-  serverBackups,
+  createServerBackups,
   workspaceKey,
 } from "../services/serverBackup";
+import { activeProfile, deviceKey } from "../services/deviceScope";
 
 const settingKey = "mochiplan-automatic-backups";
 const checkpointKey = "mochiplan-backup-checkpoint";
@@ -14,23 +15,30 @@ export function useAutomaticBackups(
   saved: string,
   paused: boolean,
 ) {
+  const [settingName] = useState(() => deviceKey(settingKey));
   const [engine] = useState(() => {
+    const profile = activeProfile();
+    const setting = deviceKey(settingKey, profile),
+      checkpointName = deviceKey(checkpointKey, profile);
     let enabled = true,
       checkpoint = null;
     try {
-      enabled = localStorage.getItem(settingKey) !== "off";
-      const stored = JSON.parse(localStorage.getItem(checkpointKey) || "null");
-      if (stored?.workspaceKey === localStorage.getItem("mochiplan-server-key"))
+      enabled = localStorage.getItem(setting) !== "off";
+      const stored = JSON.parse(localStorage.getItem(checkpointName) || "null");
+      if (
+        stored?.workspaceKey ===
+        localStorage.getItem(deviceKey("mochiplan-server-key", profile))
+      )
         checkpoint = parseBackupMetadata(stored.metadata);
     } catch {}
     return new AutomaticBackups({
-      transport: serverBackups,
+      transport: createServerBackups(profile),
       enabled,
       checkpoint,
       onCheckpoint: (metadata) => {
         localStorage.setItem(
-          checkpointKey,
-          JSON.stringify({ workspaceKey: workspaceKey(), metadata }),
+          checkpointName,
+          JSON.stringify({ workspaceKey: workspaceKey(profile), metadata }),
         );
       },
     });
@@ -59,7 +67,7 @@ export function useAutomaticBackups(
   useEffect(() => engine.setPaused(paused), [engine, paused]);
   function setAutomatic(enabled: boolean) {
     try {
-      localStorage.setItem(settingKey, enabled ? "on" : "off");
+      localStorage.setItem(settingName, enabled ? "on" : "off");
     } catch {}
     engine.setEnabled(enabled);
   }

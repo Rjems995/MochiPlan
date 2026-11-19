@@ -7,6 +7,7 @@ export function ReminderSettings() {
     workspace: { pref },
     platform: { toggleReminders, sendOverview },
     reminders,
+    accounts,
   } = useAppContext();
   const { enabled, supported, config, busy, phase, online } = reminders;
   let status = "Background reminders are off on this device.";
@@ -123,6 +124,12 @@ export function ReminderSettings() {
         )}
       </dl>
       <p className="reminder-hint">
+        {accounts.user && (
+          <>
+            Account reminders follow the last schedule synced to your account,
+            including edits from your other devices.{" "}
+          </>
+        )}
         The server must stay running. Sync edits before closing the app.
         Delivery depends on your connection and device notification settings;
         iPhone and iPad require the installed Home Screen app.

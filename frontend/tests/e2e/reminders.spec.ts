@@ -112,12 +112,17 @@ async function restoreFixture(page: Page, data = workspace()) {
   await settings(page);
 }
 async function device(page: Page) {
-  return page.evaluate(() => ({
-    key: localStorage.getItem("mochiplan-server-key"),
-    id: JSON.parse(
-      localStorage.getItem("mochiplan-background-reminders") || "null",
-    ).deviceId,
-  }));
+  return page.evaluate(() => {
+    const profile = localStorage.getItem("mochiplan-active-profile"),
+      suffix = profile ? `:${profile}` : "";
+    return {
+      key: localStorage.getItem(`mochiplan-server-key${suffix}`),
+      id: JSON.parse(
+        localStorage.getItem(`mochiplan-background-reminders${suffix}`) ||
+          "null",
+      ).deviceId,
+    };
+  });
 }
 
 test("server schedules a reminder with the app closed; the service worker displays and deduplicates push", async ({
@@ -461,6 +466,108 @@ test("expired subscriptions reconnect without losing local plans", async ({
     await page
       .locator(".reminder-settings")
       .screenshot({ path: ".sites-runtime/reminders-desktop.png" });
+  } finally {
+    await api.close();
+  }
+});
+
+test("account edits update linked background reminders while the device app is closed", async ({
+  page,
+  context,
+}) => {
+  const api = await start(page, context);
+  try {
+    await page.goto("/");
+    await settings(page);
+    await restoreFixture(page);
+    await page
+      .getByRole("button", { name: "Create account", exact: true })
+      .click();
+    const form = page.locator(".account-form");
+    await form.getByLabel("Username", { exact: true }).fill("linked_student");
+    await form
+      .getByLabel("Password", { exact: true })
+      .fill("a-good-closed-app-password");
+    await page
+      .getByRole("button", { name: "Create my account", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "I’ve saved my code", exact: true })
+      .click();
+    await settings(page);
+    await expect(page.locator(".account-sync-status")).toContainText(
+      "Your account plans are up to date.",
+    );
+    await page
+      .getByRole("button", { name: "Enable background reminders", exact: true })
+      .click();
+    await expect(page.locator(".reminder-device-status")).toContainText(
+      "Background reminders are on",
+    );
+    const identity = await device(page),
+      deviceHeaders = { Authorization: `Bearer ${identity.key}` };
+    await expect
+      .poll(
+        async () =>
+          (
+            await (
+              await fetch(`${api.base}/api/push/devices/${identity.id}`, {
+                headers: deviceHeaders,
+              })
+            ).json()
+          ).accountLinked,
+      )
+      .toBe(true);
+    const session = await page.evaluate(async () =>
+      (await fetch("/api/account/session")).json(),
+    );
+    const cookie = (await context.cookies()).find(
+      (c) => c.name === "mochiplan_session",
+    )!;
+    const headers = {
+      Origin: "http://127.0.0.1:4173",
+      "Content-Type": "application/json",
+      Cookie: `${cookie.name}=${cookie.value}`,
+      "X-Mochi-CSRF": session.csrfToken,
+      "X-Mochi-Account": session.user.id,
+    };
+    await page.close();
+    const snapshot = await (
+      await fetch(`${api.base}/api/sync/workspace`, { headers })
+    ).json();
+    snapshot.data.schedules[0].entries[0].cancelledDates = ["2026-11-16"];
+    let response = await fetch(`${api.base}/api/sync/workspace`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({
+        version: 1,
+        revision: snapshot.revision,
+        data: snapshot.data,
+      }),
+    });
+    expect(response.ok).toBe(true);
+    const saved = await response.json();
+    api.advance(60000);
+    await api.server.reminderScheduler.tick();
+    expect(api.received).toHaveLength(0);
+    snapshot.data.schedules[0].entries[0].cancelledDates = [];
+    snapshot.data.schedules[0].entries[0].title = "Updated from computer";
+    response = await fetch(`${api.base}/api/sync/workspace`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({
+        version: 1,
+        revision: saved.revision,
+        data: snapshot.data,
+      }),
+    });
+    expect(response.ok).toBe(true);
+    await api.server.reminderScheduler.tick();
+    expect(api.received).toHaveLength(1);
+    expect(api.received[0].payload.title).toBe(
+      "Coming up: Updated from computer",
+    );
+    expect(api.received[0].payload.body).toContain("9:00 AM");
   } finally {
     await api.close();
   }

@@ -38,8 +38,10 @@ export function BackupHistoryDialog() {
           <section className="backup-safety-point">
             <History size={20} />
             <div>
-              <h3>Before your last restore</h3>
-              <p>A safety copy on this device, available offline.</p>
+              <h3>Previous workspace on this device</h3>
+              <p>
+                A safety copy from before a restore or sync, available offline.
+              </p>
               <time dateTime={restorePoint.savedAt}>
                 {new Date(restorePoint.savedAt).toLocaleString()}
               </time>

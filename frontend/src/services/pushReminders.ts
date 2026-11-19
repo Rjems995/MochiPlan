@@ -1,5 +1,6 @@
 import { workspaceKey } from "./serverBackup";
 import type { ReminderPlan } from "./reminderPlan";
+import { activeProfile } from "./deviceScope";
 
 export type PushConfig = {
   version: 1;
@@ -22,7 +23,12 @@ export class PushError extends Error {
     this.status = status;
   }
 }
-async function request(path: string, method = "GET", body?: unknown) {
+async function scopedRequest(
+  path: string,
+  method = "GET",
+  body?: unknown,
+  profile = activeProfile(),
+) {
   const controller = new AbortController(),
     timeout = setTimeout(() => controller.abort(), 10000);
   try {
@@ -30,7 +36,7 @@ async function request(path: string, method = "GET", body?: unknown) {
       method,
       headers: {
         ...(path !== "/config"
-          ? { Authorization: `Bearer ${workspaceKey()}` }
+          ? { Authorization: `Bearer ${workspaceKey(profile)}` }
           : {}),
         ...(body ? { "Content-Type": "application/json" } : {}),
       },
@@ -59,30 +65,34 @@ async function request(path: string, method = "GET", body?: unknown) {
     clearTimeout(timeout);
   }
 }
-export const pushReminders = {
-  async config(): Promise<PushConfig> {
-    return request("/config");
-  },
-  async status(id: string): Promise<PushDeviceStatus> {
-    return request(`/devices/${id}`);
-  },
-  async sync(
-    id: string,
-    subscription: PushSubscription,
-    plan: ReminderPlan,
-  ): Promise<PushDeviceStatus> {
-    return request(`/devices/${id}`, "PUT", {
-      subscription: subscription.toJSON(),
-      plan,
-    });
-  },
-  async remove(id: string) {
-    return request(`/devices/${id}`, "DELETE");
-  },
-  async test(id: string) {
-    return request(`/devices/${id}/test`, "POST");
-  },
-};
+export function createPushReminders(profile = activeProfile()) {
+  const request = (path: string, method = "GET", body?: unknown) =>
+    scopedRequest(path, method, body, profile);
+  return {
+    async config(): Promise<PushConfig> {
+      return request("/config");
+    },
+    async status(id: string): Promise<PushDeviceStatus> {
+      return request(`/devices/${id}`);
+    },
+    async sync(
+      id: string,
+      subscription: PushSubscription,
+      plan: ReminderPlan,
+    ): Promise<PushDeviceStatus> {
+      return request(`/devices/${id}`, "PUT", {
+        subscription: subscription.toJSON(),
+        plan,
+      });
+    },
+    async remove(id: string) {
+      return request(`/devices/${id}`, "DELETE");
+    },
+    async test(id: string) {
+      return request(`/devices/${id}/test`, "POST");
+    },
+  };
+}
 export function applicationKey(value: string): Uint8Array<ArrayBuffer> {
   const raw = atob(value.replace(/-/g, "+").replace(/_/g, "/"));
   return Uint8Array.from(raw, (c) => c.charCodeAt(0));

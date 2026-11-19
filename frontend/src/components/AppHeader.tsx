@@ -13,6 +13,7 @@ export function AppHeader() {
     navigation: { page, navigate, setMobileMenu, mobileMenu },
     platform: { online, setWelcome },
     workspace: { saved },
+    accounts,
   } = useAppContext();
   return (
     <header className="topbar">
@@ -57,7 +58,13 @@ export function AppHeader() {
         <span className="connection-status">
           {online ? <Cloud size={15} /> : <WifiOff size={15} />}
           <span aria-live="polite">
-            {!online ? "Offline & feeling cozy" : saved}
+            {!online
+              ? "Offline & feeling cozy"
+              : saved !== "All changes saved" || !accounts.user
+                ? saved
+                : accounts.sync.status === "synced"
+                  ? "Synced"
+                  : "Saved locally"}
           </span>
         </span>
         <span className="topbar-divider" />

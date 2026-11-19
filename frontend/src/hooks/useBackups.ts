@@ -3,7 +3,7 @@ import type { ChangeEvent } from "react";
 import { useRef, useState } from "react";
 import { dateKey, initialCalendarDate, weekdayForDate } from "../calendar";
 import { type AppData } from "../model";
-import { serverBackups } from "../services/serverBackup";
+import { createServerBackups } from "../services/serverBackup";
 import type { BackupHistory, BackupSnapshot } from "../services/backupTypes";
 import {
   loadRestorePoint,
@@ -24,6 +24,7 @@ export function useBackups(
   notify: (text: string) => void,
 ) {
   const { data, restoreData } = workspace;
+  const [serverBackups] = useState(createServerBackups);
   const [backupConfirm, setBackupConfirm] = useState<AppData | null>(null);
   const [restoreSource, setRestoreSource] = useState<string>("");
   const [serverRestore, setServerRestore] = useState<ServerRestore | null>(
@@ -125,7 +126,7 @@ export function useBackups(
     if (!restorePoint) return;
     setServerRestore(null);
     setRestoreSource(
-      `Before your last restore · ${new Date(restorePoint.savedAt).toLocaleString()}`,
+      `Previous device workspace · ${new Date(restorePoint.savedAt).toLocaleString()}`,
     );
     setBackupConfirm(restorePoint.data);
     setHistoryOpen(false);

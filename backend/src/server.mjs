@@ -12,6 +12,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { WorkspaceStore } from "./database.mjs";
 import { validateWorkspace } from "./validation.mjs";
 import { HttpError } from "./errors.mjs";
+import { Accounts } from "./accounts.mjs";
+import { accountRoutes } from "./account-routes.mjs";
 import { loadPushConfig, createPushSender } from "./push-config.mjs";
 import { ReminderStore } from "./reminder-store.mjs";
 import { ReminderScheduler } from "./reminder-scheduler.mjs";
@@ -87,9 +89,19 @@ export function createApp({
   maxBodyBytes = 20 * 1024 * 1024,
   historyLimit = 30,
   push = {},
+  accountOptions = {},
 } = {}) {
   const store = new WorkspaceStore(databasePath, { historyLimit });
+  const accounts = new Accounts(store.db, accountOptions);
   const reminderStore = new ReminderStore(store.db);
+  const handleAccount = accountRoutes({
+    accounts,
+    workspaces: store,
+    readJson,
+    sendJson,
+    maxBodyBytes,
+    reminders: reminderStore,
+  });
   const scheduler = new ReminderScheduler(reminderStore, {
     ...push,
     send: push.send || createPushSender(push.config || {}),
@@ -113,6 +125,7 @@ export function createApp({
       if (url.pathname.startsWith("/api/") || url.pathname === "/api") {
         if (req.headers.origin && !origins.has(req.headers.origin))
           throw new HttpError(403, "This origin is not allowed.");
+        if (await handleAccount(req, res, url.pathname)) return;
         if (url.pathname === "/api/push/config") {
           if (req.method !== "GET") {
             res.setHeader("Allow", "GET");
@@ -172,8 +185,14 @@ export function createApp({
                 "Background reminders are not configured on this server yet.",
               );
             const body = await readJson(req, maxBodyBytes);
-            const subscription = validateSubscription(body?.subscription),
-              plan = validateReminderPlan(body?.plan);
+            const subscription = validateSubscription(body?.subscription);
+            const linkedKey = reminderStore.linkedKey(key, deviceId),
+              shared = linkedKey && store.get(linkedKey)?.data;
+            const plan = validateReminderPlan(
+              shared
+                ? { ...body?.plan, schedules: shared.schedules }
+                : body?.plan,
+            );
             sendJson(
               res,
               200,
@@ -321,6 +340,11 @@ if (
       .filter(Boolean)
       .concat([`http://${host}:${port}`]),
     historyLimit: Number(process.env.BACKUP_HISTORY_LIMIT || 30),
+    accountOptions: {
+      secureCookies:
+        process.env.ACCOUNT_SECURE_COOKIES === "true" ||
+        process.env.NODE_ENV === "production",
+    },
     push: {
       config: loadPushConfig({
         subject: process.env.VAPID_SUBJECT,

@@ -4,13 +4,13 @@ import { reminderPlan } from "../services/reminderPlan";
 import {
   applicationKey,
   PushError,
-  pushReminders,
+  createPushReminders,
   serviceWorkerReady,
   type PushConfig,
   type PushDeviceStatus,
 } from "../services/pushReminders";
+import { deviceKey } from "../services/deviceScope";
 
-const storageKey = "mochiplan-background-reminders";
 type DeviceSettings = {
   deviceId: string;
   enabled: boolean;
@@ -24,6 +24,10 @@ export function useBackgroundReminders(
   saved: string,
   notify: (message: string) => void,
 ) {
+  const [storageKey] = useState(() =>
+    deviceKey("mochiplan-background-reminders"),
+  );
+  const [pushReminders] = useState(createPushReminders);
   const supported =
     window.isSecureContext &&
     "serviceWorker" in navigator &&
@@ -331,6 +335,7 @@ export function useBackgroundReminders(
   const current = syncedText === planText && phase === "active";
   return {
     supported,
+    deviceId: settings.deviceId,
     config,
     enabled: settings.enabled,
     phase,

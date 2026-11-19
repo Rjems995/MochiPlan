@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { HttpError } from "./errors.mjs";
-import { planHash } from "./reminder-plan.mjs";
+import { planHash, validateReminderPlan } from "./reminder-plan.mjs";
 
 export class ReminderStore {
   constructor(db) {
@@ -17,7 +17,8 @@ export class ReminderStore {
       payload TEXT NOT NULL, status TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0,
       next_at INTEGER NOT NULL, lease_until INTEGER, claim TEXT,
       PRIMARY KEY(owner,device_id,id)
-    ); CREATE INDEX IF NOT EXISTS push_due ON push_deliveries(status,next_at);`);
+    ); CREATE INDEX IF NOT EXISTS push_due ON push_deliveries(status,next_at);
+    CREATE TABLE IF NOT EXISTS account_reminder_devices (account_id TEXT NOT NULL,owner TEXT NOT NULL,device_id TEXT NOT NULL,PRIMARY KEY(owner,device_id));`);
   }
   owner(key) {
     return createHash("sha256").update(key).digest("hex");
@@ -39,6 +40,11 @@ export class ReminderStore {
       error: row?.error || "",
       timezone: row ? JSON.parse(row.plan).timezone : null,
       planHash: row?.plan_hash || null,
+      accountLinked: !!this.db
+        .prepare(
+          "SELECT 1 FROM account_reminder_devices WHERE owner=? AND device_id=?",
+        )
+        .get(this.owner(key), id),
     };
   }
   save(key, id, subscription, plan, now) {
@@ -118,6 +124,11 @@ export class ReminderStore {
     this.db.exec("BEGIN IMMEDIATE");
     try {
       this.db
+        .prepare(
+          "DELETE FROM account_reminder_devices WHERE owner=? AND device_id=?",
+        )
+        .run(owner, id);
+      this.db
         .prepare("DELETE FROM push_devices WHERE owner=? AND device_id=?")
         .run(owner, id);
       this.db
@@ -129,6 +140,89 @@ export class ReminderStore {
     } catch (error) {
       this.db.exec("ROLLBACK");
       throw error;
+    }
+  }
+  linkedKey(key, id) {
+    return this.db
+      .prepare(
+        "SELECT a.workspace_key FROM account_reminder_devices m JOIN accounts a ON a.id=m.account_id WHERE m.owner=? AND m.device_id=?",
+      )
+      .get(this.owner(key), id)?.workspace_key;
+  }
+  linkAccount(accountId, key, id, data, now) {
+    const owner = this.owner(key),
+      row = this.row(key, id);
+    if (!row)
+      throw new HttpError(
+        404,
+        "Sync this reminder device before linking it to your account.",
+      );
+    const previous = this.db
+      .prepare(
+        "SELECT account_id FROM account_reminder_devices WHERE owner=? AND device_id=?",
+      )
+      .get(owner, id);
+    if (previous && previous.account_id !== accountId)
+      throw new HttpError(
+        409,
+        "This reminder device belongs to another account.",
+      );
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      this.db
+        .prepare(
+          "INSERT OR IGNORE INTO account_reminder_devices VALUES (?,?,?)",
+        )
+        .run(accountId, owner, id);
+      if (data) this.syncAccount(accountId, data, now);
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+  // Called inside the account workspace transaction so cancellations and reminder jobs commit together.
+  syncAccount(accountId, data, now) {
+    const devices = this.db
+      .prepare(
+        "SELECT d.* FROM push_devices d JOIN account_reminder_devices m ON m.owner=d.owner AND m.device_id=d.device_id WHERE m.account_id=? AND d.enabled=1",
+      )
+      .all(accountId);
+    for (const device of devices) {
+      const previous = JSON.parse(device.plan);
+      let plan;
+      try {
+        plan = validateReminderPlan({ ...previous, schedules: data.schedules });
+      } catch (error) {
+        if (!(error instanceof HttpError)) throw error;
+        this.db
+          .prepare(
+            "UPDATE push_devices SET enabled=0,error=? WHERE owner=? AND device_id=?",
+          )
+          .run(
+            "Account reminder updates are paused. The account exceeds this device’s supported reminder limits.",
+            device.owner,
+            device.device_id,
+          );
+        this.db
+          .prepare(
+            "DELETE FROM push_deliveries WHERE owner=? AND device_id=? AND status!='sent'",
+          )
+          .run(device.owner, device.device_id);
+        continue;
+      }
+      const hash = planHash(plan);
+      if (hash === device.plan_hash) continue;
+      this.db
+        .prepare(
+          "UPDATE push_devices SET plan=?,plan_hash=?,generation=generation+1,synced_at=? WHERE owner=? AND device_id=?",
+        )
+        .run(JSON.stringify(plan), hash, now, device.owner, device.device_id);
+      this.db
+        .prepare(
+          "DELETE FROM push_deliveries WHERE owner=? AND device_id=? AND status!='sent'",
+        )
+        .run(device.owner, device.device_id);
     }
   }
   devices() {

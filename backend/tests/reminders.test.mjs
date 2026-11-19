@@ -8,6 +8,7 @@ import { tmpdir } from "node:os";
 import { generateVAPIDKeys, generateRequestDetails } from "web-push";
 import { createApp } from "../src/server.mjs";
 import { WorkspaceStore } from "../src/database.mjs";
+import { Accounts } from "../src/accounts.mjs";
 import { ReminderStore } from "../src/reminder-store.mjs";
 import { ReminderScheduler } from "../src/reminder-scheduler.mjs";
 import { loadPushConfig } from "../src/push-config.mjs";
@@ -431,4 +432,59 @@ test("push API isolates devices, validates subscriptions, supports disabling and
   assert.equal((await (await fetch(path, { headers })).json()).enabled, false);
   await server.reminderScheduler.tick();
   assert.equal(sent.length, 1);
+});
+
+test("account revisions and linked reminder cancellations commit atomically while device timing stays local", async (t) => {
+  const workspaces = new WorkspaceStore(":memory:");
+  t.after(() => workspaces.close());
+  const accounts = new Accounts(workspaces.db),
+    reminders = new ReminderStore(workspaces.db);
+  const session = await accounts.register(
+    { username: "linked_account", password: "a-safe-atomic-test-password" },
+    "test-linked-ip",
+  );
+  const account = workspaces.db
+    .prepare("SELECT * FROM accounts WHERE id=?")
+    .get(session.result.user.id);
+  const data = workspace();
+  workspaces.save(account.workspace_key, 0, data);
+  const devicePlan = plan();
+  devicePlan.minutes = 15;
+  reminders.save(key, device, subscription(), devicePlan, at);
+  reminders.linkAccount(account.id, key, device, data, at);
+  const row = reminders.devices()[0];
+  reminders.enqueue(row, [
+    { id: "pending-class", dueAt: at, expiresAt: at + 300000, payload: {} },
+  ]);
+  data.schedules[0].entries[0].cancelledDates = ["2026-11-16"];
+  assert.throws(
+    () =>
+      workspaces.save(account.workspace_key, 1, data, "automatic", () => {
+        reminders.syncAccount(account.id, data, at);
+        throw Error("disk failure");
+      }),
+    /disk failure/,
+  );
+  assert.equal(workspaces.get(account.workspace_key).revision, 1);
+  assert.equal(
+    workspaces.db.prepare("SELECT count(*) AS n FROM push_deliveries").get().n,
+    1,
+  );
+  workspaces.save(account.workspace_key, 1, data, "automatic", () =>
+    reminders.syncAccount(account.id, data, at),
+  );
+  assert.equal(
+    workspaces.db.prepare("SELECT count(*) AS n FROM push_deliveries").get().n,
+    0,
+  );
+  const updated = JSON.parse(reminders.row(key, device).plan);
+  assert.equal(updated.minutes, 15);
+  assert.equal(updated.timezone, "Asia/Manila");
+  assert.deepEqual(updated.schedules[0].entries[0].cancelledDates, [
+    "2026-11-16",
+  ]);
+  assert.throws(
+    () => reminders.linkAccount("another-account", key, device, data, at),
+    { status: 409 },
+  );
 });
