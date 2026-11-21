@@ -1,15 +1,8 @@
-import {
-  createHash,
-  randomBytes,
-  randomUUID,
-  scrypt,
-  timingSafeEqual,
-} from "node:crypto";
-import { promisify } from "node:util";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { HttpError } from "./errors.mjs";
+import { equal, passwordHash } from "./credentials.mjs";
 
-const derive = promisify(scrypt),
-  lifetime = 30 * 86400000;
+const lifetime = 30 * 86400000;
 const digest = (value) => createHash("sha256").update(value).digest("hex");
 const recoveryKey = () =>
   randomBytes(20)
@@ -18,12 +11,6 @@ const recoveryKey = () =>
     .join("-");
 const recoveryHash = (value) =>
   digest(String(value).replaceAll("-", "").toLowerCase());
-const equal = (a, b) => {
-  if (typeof a !== "string" || typeof b !== "string") return false;
-  const left = Buffer.from(a),
-    right = Buffer.from(b);
-  return left.length === right.length && timingSafeEqual(left, right);
-};
 const usernameOf = (value) => {
   if (typeof value !== "string" || !/^[a-zA-Z0-9_]{3,32}$/.test(value))
     throw new HttpError(
@@ -62,23 +49,6 @@ function deviceLabel(agent = "") {
               ? "Linux"
               : "";
   return os ? `${browser} on ${os}` : ua ? browser : "Earlier browser session";
-}
-let hashing = 0;
-async function passwordHash(password, salt = randomBytes(16).toString("hex")) {
-  if (hashing >= 2)
-    throw new HttpError(503, "Sign-in is busy. Try again in a moment.");
-  hashing++;
-  try {
-    const result = await derive(password, salt, 32, {
-      N: 131072,
-      r: 8,
-      p: 1,
-      maxmem: 256 * 1024 * 1024,
-    });
-    return { salt, hash: result.toString("hex") };
-  } finally {
-    hashing--;
-  }
 }
 
 export class Accounts {

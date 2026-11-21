@@ -9,6 +9,7 @@ export function accountRoutes({
   sendJson,
   maxBodyBytes,
   reminders,
+  shares,
 }) {
   return async (req, res, path) => {
     if (
@@ -83,7 +84,10 @@ export function accountRoutes({
           req,
           await readJson(req, 4096),
           req.socket.remoteAddress || "unknown",
-          (id) => reminders.removeAccountDevices(id),
+          (id) => {
+            shares.removeAccount(id);
+            return reminders.removeAccountDevices(id);
+          },
         );
         res.setHeader("Set-Cookie", accounts.cookie("", secureCookie));
         sendJson(res, 200, result);

@@ -6,6 +6,7 @@ import type { BackupsController } from "../hooks/useBackups";
 import type { FeedbackController } from "../hooks/useFeedback";
 import type { NavigationController } from "../hooks/useNavigation";
 import type { PlannerManagerController } from "../hooks/usePlannerManager";
+import type { PlannerSharingController } from "../hooks/usePlannerSharing";
 import type { ScheduleCollectionController } from "../hooks/useScheduleCollection";
 import type { ScheduleEditorController } from "../hooks/useScheduleEditor";
 import type { TaskManagerController } from "../hooks/useTaskManager";
@@ -26,6 +27,7 @@ export type AppContextValue = {
     canvasProps: NonNullable<ScheduleEditorController["canvasProps"]>;
   };
   planners: PlannerManagerController;
+  sharing: PlannerSharingController;
   collection: ScheduleCollectionController;
   tasks: TaskManagerController;
   templateBrowser: TemplateBrowserController;

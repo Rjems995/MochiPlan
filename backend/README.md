@@ -48,6 +48,27 @@ Use revision `0` to create a backup. GET includes its current revision; send tha
 
 Snapshot responses include `contentHash`, `updatedAt`, `source`, and a `summary` of planners, logical activities and tasks. History returns `{ version: 1, revision, latest, versions, retentionLimit }`; metadata does not contain workspace data. Restoring uses normal revision-checked writes, preserving current plans with `before-restore` and then writing the selected snapshot with `restore`. A failed or conflicting restore leaves local plans unchanged. Older database heads migrate into history as `legacy` versions with their original revisions and timestamps.
 
+## Read-only planner sharing
+
+| Method | Route                                | Purpose                                                                                                               |
+| ------ | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/planner-shares?scheduleId=...` | Lists this owner’s planner links. Omit `scheduleId` to include removed local planners.                                |
+| POST   | `/api/planner-shares`                | Creates a saved shared copy and returns its private viewer token.                                                     |
+| PUT    | `/api/planner-shares/:id`            | Updates the shared copy/access settings using its current `revision`.                                                 |
+| DELETE | `/api/planner-shares/:id`            | Revokes access and removes the saved payload and encrypted token.                                                     |
+| GET    | `/api/shared-planner`                | Reads one copy using `X-Mochi-Share`, optionally `X-Mochi-Share-Access`; returns only a password gate when protected. |
+| POST   | `/api/shared-planner`                | Verifies `{ password }` and returns a copy plus a 30-minute access grant.                                             |
+
+Management uses the browser’s 256-bit backup bearer key. Account profiles also supply a matching live cookie and `X-Mochi-Account`; ownership then uses the private account workspace key, allowing management across devices. The bearer secret proves control for these mutations, and an allowed Origin is required. Authorization is checked again after asynchronous reads/password derivation. Public viewer endpoints cannot mutate shared copies or workspaces.
+
+Creation/update accepts `{ schedule, preferences: { weekStart, time24 }, includeLocations, includeDetails, expiresAt, password }`, plus `revision` for updates. `expiresAt` is `null` or a future timestamp within 366 days. Passwords are `null` for public links, 12–128 characters to set/replace protection, or omitted on update to keep protection. A server-side allowlist projects one validated planner; unknown properties, tasks, profile data, and unchecked private fields never enter the stored snapshot. Restorable workspace backups are separate from published copies.
+
+Tokens contain 256 random bits. Only their SHA-256 hash is used for public lookup; an AES-256-GCM copy encrypted with the owner’s workspace key allows owners to copy existing links. Fragment URLs (`/share/#token`) keep bearer tokens out of server paths and referrers; the API receives them in a header. Passwords share the account subsystem’s bounded scrypt worker pool and are salted/hashed. SQLite limits guesses by remote IP and link/IP for 15 minutes, including across restarts. Password-derived HMAC grants are scoped to the link and expiration, remain in viewer memory, and stop working after password rotation. Every read rechecks revocation and expiration, including after hashing.
+
+Responses use `Cache-Control: no-store`, `Referrer-Policy: no-referrer` and `X-Robots-Tag: noindex, nofollow, noarchive`. The PWA excludes API navigation and has no runtime cache for shared payloads. Open viewers revalidate every 30 seconds while visible, on focus/reconnection, and at expiration using server-relative timing. A failed check removes the displayed copy. These controls cannot erase content a recipient already saved. Revocation clears the payload immediately; account deletion removes its shares in the same transaction as other account data. At most 20 unrevoked links are allowed per owner, and stale revisions return `409`.
+
+See [OWASP authorization guidance](https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html) for request-by-request access checks.
+
 ## Accounts and synchronization
 
 Accounts are optional and use usernames rather than email. Passwords are salted with Node scrypt (`N=131072`, `r=8`, `p=1`); at most two hashes run concurrently. Recovery codes contain 160 random bits, are stored only as hashes and rotate after each successful reset. Password resets revoke all existing sessions. Authentication attempts are limited in SQLite by username and remote IP over 15-minute windows. Forwarded IP headers are not trusted.

@@ -8,6 +8,7 @@ import { BackupHistoryDialog } from "./components/BackupHistoryDialog";
 import { FeedbackToast } from "./components/FeedbackToast";
 import { HelpDialogs } from "./components/HelpDialogs";
 import { PlannerDialogs } from "./components/PlannerDialogs";
+import { PlannerSharingDialog } from "./components/PlannerSharingDialog";
 import { RestoreWorkspaceDialog } from "./components/RestoreWorkspaceDialog";
 import { TaskDialog } from "./components/TaskDialog";
 import { TemplateDialog } from "./components/TemplateDialog";
@@ -20,6 +21,7 @@ import { useBackups } from "./hooks/useBackups";
 import { useFeedback } from "./hooks/useFeedback";
 import { useNavigation } from "./hooks/useNavigation";
 import { usePlannerManager } from "./hooks/usePlannerManager";
+import { usePlannerSharing } from "./hooks/usePlannerSharing";
 import { useScheduleCollection } from "./hooks/useScheduleCollection";
 import { useScheduleEditor } from "./hooks/useScheduleEditor";
 import { useTaskManager } from "./hooks/useTaskManager";
@@ -64,6 +66,7 @@ function WorkspaceApplication({
   feedback: ReturnType<typeof useFeedback>;
 }) {
   const navigation = useNavigation();
+  const sharing = usePlannerSharing(workspace.profileId);
   const reminders = useBackgroundReminders(
     workspace.data,
     workspace.saved,
@@ -126,7 +129,9 @@ function WorkspaceApplication({
     tasks.taskModal ||
     templateBrowser.templatePreview ||
     backups.backupConfirm ||
-    backups.restoring
+    backups.restoring ||
+    sharing.scheduleId ||
+    sharing.manageAll
   );
   useEffect(() => accounts.setEditing(editing), [accounts.setEditing, editing]);
   useReminderNavigation(workspace, studio, navigation);
@@ -152,12 +157,14 @@ function WorkspaceApplication({
         backups,
         reminders,
         accounts,
+        sharing,
       }}
     >
       <AppShell
         overlays={
           <>
             <PlannerDialogs />
+            <PlannerSharingDialog />
             <ActivityDialogs />
             <TemplateDialog />
             <TaskDialog />

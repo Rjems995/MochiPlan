@@ -42,6 +42,12 @@ PWA installation and service workers require HTTPS or localhost. Offline functio
 - Serialized automatic saves to IndexedDB, lightweight local preferences, save-status feedback, backup downloads, validated backup imports, and confirmation before replacing a workspace.
 - An installable web manifest, PNG/maskable icons, service-worker precaching of the app, fonts, and export libraries, offline creation/editing/export, and automatic updates when online.
 
+## Sharing planners
+
+The studio and saved planner cards open **Share this planner**. Create a read-only saved copy with optional password, expiration and opt-in locations/instructors/notes. Publishing is explicit: **Edit link → Update shared copy** updates the same link, without automatically exposing later local changes. **Settings → Manage shared links** lists all owner links and can revoke copies even after their local planner is removed. Account profiles share ownership across signed-in devices; guest links belong to this browser’s backup key. Passwords are not persisted in browser storage.
+
+`/share/#token` renders a separate viewer before workspace hooks mount. It never switches profiles, starts account sync, reads/writes a recipient workspace, or enables reminders. The viewer offers week/day/month/list navigation, defaults to day view on phones, preserves artwork and date rules, and has no editing actions. Public APIs are network-only. Link tokens travel in headers, and password grants stay in memory. Visible viewers recheck access every 30 seconds, on focus/reconnection and at expiration; failed checks hide the copy. Read-only sharing cannot prevent recipients from keeping copies of content already viewed. See the [sharing and hosting guide](../README.md#shareable-planners).
+
 ## Calendar dates
 
 Open **Calendar dates** in the editor toolbar to set semester dates, add holidays or breaks, and restore cancelled occurrences. Both semester endpoints are included; either endpoint can be left empty. New planners also offer semester dates during creation.
@@ -97,6 +103,8 @@ The production dependency audit has no known advisories at the time of verificat
 - `src/pages/`: the studio, overview, saved schedules, templates, tasks, and settings.
 - `src/hooks/useWorkspace.ts`: loading, automatic saves, preferences, schedule changes, and undo/redo.
 - `src/hooks/useAccounts.ts`: account sessions, password changes, recovery, revocation, deletion, profile switching and sync lifecycle.
+- `src/hooks/usePlannerSharing.ts`, `src/components/PlannerSharingDialog.tsx` and `src/services/plannerShares.ts`: scoped link ownership, publishing, privacy settings and revocation.
+- `src/pages/SharedPlannerPage.tsx`: standalone read-only viewer, password gate and access revalidation.
 - `src/components/AccountManagementDialog.tsx`: signed-in devices, password changes and confirmed account deletion.
 - `src/services/workspaceSync.ts`, `syncMerge.ts` and `accountApi.ts`: offline synchronization, three-way merging, conflict decisions and authenticated API calls.
 - `src/services/deviceScope.ts`: profile-specific storage names and browser backup/reminder keys.

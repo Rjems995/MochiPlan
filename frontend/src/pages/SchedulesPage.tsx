@@ -6,6 +6,7 @@ import {
   Pencil,
   Plus,
   Search,
+  Share2,
   Trash2,
 } from "lucide-react";
 import { TemplatePreview } from "../components/TemplatePreview";
@@ -29,6 +30,7 @@ export function SchedulesPage() {
     },
     studio: { chooseSchedule },
     workspace: { duplicateSchedule },
+    sharing,
   } = useAppContext();
 
   return (
@@ -101,6 +103,13 @@ export function SchedulesPage() {
                 <small>Edited {format(s.updatedAt, "MMM d, h:mm a")}</small>
               </button>
               <div>
+                <button
+                  className="icon-button"
+                  aria-label={`Share ${s.name}`}
+                  onClick={() => sharing.setScheduleId(s.id)}
+                >
+                  <Share2 size={15} />
+                </button>
                 <button
                   className="icon-button"
                   aria-label={`Rename ${s.name}`}

@@ -43,6 +43,18 @@ Backups include planners, activities, semester dates, holidays, cancelled/resche
 
 The backend stores data in `backend/data/mochiplan.sqlite`, which Git ignores. Device-only workspaces use a random browser workspace key; the server stores its hash. Each account has a separate synced workspace and each local profile has separate backup/reminder settings. Clearing site data removes local plans, cached account edits and device backup keys, so download a backup first. Server backups require the backend to be running. Backups run while the app is open; browser background timers may delay them.
 
+## Shareable planners
+
+Choose **Share planner** in the studio, or the share icon on a saved planner. Create a read-only link for anyone with the link, or protect it with a separate password of at least 12 characters. Links expire in seven days by default; choose one day, 30 days, a date/time within the next year, or no expiration. Copy the complete link, including the part after `#`.
+
+Each link contains a saved copy of **one planner**, including its calendar rules, artwork and uploaded background. Locations, instructors and notes are excluded by default and can be included explicitly. Tasks, account details, preferences unrelated to the calendar, and other planners are excluded. **Edit link → Update shared copy** publishes your current planner and chosen access settings to the same link. Later local edits do not publish automatically. Changing a link password invalidates previous viewer access grants.
+
+Recipients can browse week, day, month and list views without an account or editing controls. Shared content needs an online connection and is not cached for offline access. Expiration and revocation are enforced by the server; open viewers check again every 30 seconds while visible, on focus/reconnection, and at expiration. People can keep content they already viewed, so revocation cannot erase their saved copies.
+
+Use **Settings → Manage shared links** to review or revoke every link in the current workspace, including links whose original local planner was removed or replaced. Account links can be managed from any signed-in device; device-only links are managed using this browser’s workspace key. Deleting an account also deletes its shared copies. Up to 20 unrevoked links can be kept per workspace; revoke old links to create more.
+
+For someone on another device to open a link, the app and `/api` must use the same reachable server. Host behind HTTPS and configure its public origin as described below. A localhost link only works on the computer serving it.
+
 ## Optional accounts and cross-device sync
 
 Open **Settings → Your plans, wherever you are** to create a username/password account or sign in. No email service is required. Usernames use 3–32 letters, numbers or underscores; passwords use at least 12 characters. Save the recovery code shown once after sign-up. **Recover account** resets a forgotten password, replaces that code and signs out existing sessions.

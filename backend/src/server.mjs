@@ -14,6 +14,8 @@ import { validateWorkspace } from "./validation.mjs";
 import { HttpError } from "./errors.mjs";
 import { Accounts } from "./accounts.mjs";
 import { accountRoutes } from "./account-routes.mjs";
+import { PlannerShares } from "./shares.mjs";
+import { shareRoutes } from "./share-routes.mjs";
 import { loadPushConfig, createPushSender } from "./push-config.mjs";
 import { ReminderStore } from "./reminder-store.mjs";
 import { ReminderScheduler } from "./reminder-scheduler.mjs";
@@ -90,10 +92,19 @@ export function createApp({
   historyLimit = 30,
   push = {},
   accountOptions = {},
+  shareOptions = {},
 } = {}) {
   const store = new WorkspaceStore(databasePath, { historyLimit });
   const accounts = new Accounts(store.db, accountOptions);
   const reminderStore = new ReminderStore(store.db);
+  const shares = new PlannerShares(store.db, shareOptions);
+  const handleShares = shareRoutes({
+    shares,
+    accounts,
+    readJson,
+    sendJson,
+    maxBodyBytes,
+  });
   const handleAccount = accountRoutes({
     accounts,
     workspaces: store,
@@ -101,6 +112,7 @@ export function createApp({
     sendJson,
     maxBodyBytes,
     reminders: reminderStore,
+    shares,
   });
   const scheduler = new ReminderScheduler(reminderStore, {
     ...push,
@@ -126,6 +138,7 @@ export function createApp({
         if (req.headers.origin && !origins.has(req.headers.origin))
           throw new HttpError(403, "This origin is not allowed.");
         if (await handleAccount(req, res, url.pathname)) return;
+        if (await handleShares(req, res, url)) return;
         if (url.pathname === "/api/push/config") {
           if (req.method !== "GET") {
             res.setHeader("Allow", "GET");
@@ -294,6 +307,12 @@ export function createApp({
             : "File not found.",
         );
       res.writeHead(200, {
+        ...(/^\/share\/?$/.test(pathname)
+          ? {
+              "Referrer-Policy": "no-referrer",
+              "X-Robots-Tag": "noindex, nofollow, noarchive",
+            }
+          : {}),
         "Content-Length": file.size,
         "Content-Type": types[extname(filename)] || "application/octet-stream",
         "Cache-Control": pathname.startsWith("/assets/")

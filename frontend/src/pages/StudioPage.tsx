@@ -17,6 +17,7 @@ import {
   Pencil,
   Plus,
   Redo2,
+  Share2,
   Undo2,
   X,
 } from "lucide-react";
@@ -74,6 +75,7 @@ export function StudioPage() {
     },
     feedback: { notify },
     navigation: { navigate },
+    sharing,
   } = useAppContext();
 
   return (
@@ -96,6 +98,14 @@ export function StudioPage() {
           <span className="planner-type">{active.type}</span>
         </div>
         <div className="toolbar-actions">
+          <button
+            className="icon-button"
+            aria-label="Share planner"
+            title="Share a read-only copy"
+            onClick={() => sharing.setScheduleId(active.id)}
+          >
+            <Share2 size={17} />
+          </button>
           <button
             className="button secondary small calendar-dates-button"
             aria-label="Calendar dates"

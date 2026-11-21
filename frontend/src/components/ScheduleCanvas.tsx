@@ -105,9 +105,9 @@ function Block({
           zIndex: isDragging ? 50 : 2,
         } as CSSProperties
       }
-      {...attributes}
-      {...listeners}
-      onClick={onEdit}
+      {...(interactive ? attributes : {})}
+      {...(interactive ? listeners : {})}
+      onClick={interactive ? onEdit : undefined}
       title={`${entry.title}\n${formatTime(entry.start, preferences.time24)} – ${formatTime(entry.end, preferences.time24)}${entry.location ? "\n" + entry.location : ""}`}
       aria-label={`${entry.title}, ${dayNames[entry.day]}, ${formatTime(entry.start, preferences.time24)} to ${formatTime(entry.end, preferences.time24)}${conflict ? ", overlapping activity" : ""}`}
     >

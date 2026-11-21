@@ -11,6 +11,7 @@ import "@fontsource/caveat/latin-400.css";
 import "@fontsource/caveat/latin-600.css";
 import { registerSW } from "virtual:pwa-register";
 import App from "./App";
+import SharedPlannerPage from "./pages/SharedPlannerPage";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./style.css";
 import "./workspace.css";
@@ -20,6 +21,7 @@ import "./scoped-edits.css";
 import "./backups.css";
 import "./reminders.css";
 import "./accounts.css";
+import "./sharing.css";
 registerSW({
   immediate: true,
   onRegisteredSW(_url, registration) {
@@ -36,6 +38,6 @@ registerSW({
 });
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <ErrorBoundary>
-    <App />
+    {/^\/share\/?$/.test(location.pathname) ? <SharedPlannerPage /> : <App />}
   </ErrorBoundary>,
 );

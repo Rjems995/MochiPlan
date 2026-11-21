@@ -20,6 +20,7 @@ export function SettingsPage() {
     workspace: { pref, saved },
     platform: { requestPersistence, installApp, setWelcome },
     backups: { backupInput, readBackupFile },
+    sharing,
   } = useAppContext();
 
   return (
@@ -36,6 +37,20 @@ export function SettingsPage() {
       </div>
       <div className="settings-grid">
         <AccountSettings />
+        <section className="content-card sharing-settings">
+          <h2>Shared planner links</h2>
+          <p className="settings-description">
+            Review and revoke read-only links, including copies of planners you
+            no longer keep on this device.
+          </p>
+          <button
+            className="button secondary"
+            onClick={() => sharing.setManageAll(true)}
+          >
+            <Share2 size={16} />
+            Manage shared links
+          </button>
+        </section>
         <section className="content-card">
           <h2>A little about you</h2>
           <label className="field-label">
