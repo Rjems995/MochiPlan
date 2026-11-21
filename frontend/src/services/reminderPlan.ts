@@ -1,7 +1,20 @@
-import type { AppData, Entry } from "../model";
+import type { AppData, Entry, Task } from "../model";
+import { activeProfile } from "./deviceScope.ts";
 
 export function reminderPlan(data: AppData, timezone: string) {
+  const tasks = data.tasks
+    .filter(
+      (task) => !task.done && task.due && task.reminderMinutes !== undefined,
+    )
+    .map((task) => ({
+      id: task.id,
+      title: task.title,
+      due: task.due,
+      dueTime: task.dueTime || "09:00",
+      reminderMinutes: task.reminderMinutes!,
+    }));
   return {
+    ...(tasks.length ? { tasks, profileId: activeProfile() || "device" } : {}),
     version: 1,
     timezone,
     minutes: data.preferences.reminderMinutes,
@@ -32,6 +45,23 @@ export function reminderPlan(data: AppData, timezone: string) {
       })),
     })),
   };
+}
+export async function taskReminderId(task: Task) {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(
+      JSON.stringify([
+        "task",
+        task.id,
+        task.due,
+        task.dueTime || "09:00",
+        task.reminderMinutes,
+      ]),
+    ),
+  );
+  return Array.from(new Uint8Array(digest), (n) =>
+    n.toString(16).padStart(2, "0"),
+  ).join("");
 }
 export type ReminderPlan = ReturnType<typeof reminderPlan>;
 export async function reminderId(

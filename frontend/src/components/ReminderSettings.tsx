@@ -25,8 +25,9 @@ export function ReminderSettings() {
     <section className="content-card reminder-settings">
       <h2>A nudge, even when you’re away</h2>
       <p className="reminder-description">
-        Receive activity reminders after closing MochiPlan. Your server keeps
-        the schedule running and sends notifications to this device.
+        Receive activity reminders and selected task deadline alerts after
+        closing MochiPlan. Your server keeps the schedule running and sends
+        notifications to this device.
       </p>
       {!supported && (
         <p className="reminder-notice">
@@ -149,6 +150,10 @@ export function ReminderSettings() {
           ))}
         </select>
       </label>
+      <p className="reminder-hint">
+        Task deadline alerts use the notification time chosen on each task.
+        Tasks without a deadline time use 9:00 am in this device’s time zone.
+      </p>
       <div className="panel-divider" />
       <h3>Reminders while open</h3>
       <p className="reminder-description">

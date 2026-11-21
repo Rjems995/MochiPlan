@@ -4,14 +4,17 @@ import { isCalendarDate, weekdayForDate } from "../calendar";
 import type { WorkspaceController } from "./useWorkspace";
 import type { ScheduleEditorController } from "./useScheduleEditor";
 import type { NavigationController } from "./useNavigation";
+import type { TaskManagerController } from "./useTaskManager";
 
 export function useReminderNavigation(
   workspace: WorkspaceController,
   studio: ScheduleEditorController,
   navigation: NavigationController,
+  tasks: TaskManagerController,
+  notify: (message: string) => void,
 ) {
-  const latest = useRef({ workspace, studio, navigation });
-  latest.current = { workspace, studio, navigation };
+  const latest = useRef({ workspace, studio, navigation, tasks, notify });
+  latest.current = { workspace, studio, navigation, tasks, notify };
   const opened = useRef(false);
   useEffect(() => {
     function open(value: string) {
@@ -29,6 +32,22 @@ export function useReminderNavigation(
         studio: editor,
         navigation: nav,
       } = latest.current;
+      const taskId = url.searchParams.get("task");
+      if (taskId) {
+        const profile = url.searchParams.get("profile");
+        if (profile && profile !== (current.profileId || "device")) {
+          latest.current.notify(
+            "Switch to the workspace that owns this task to open its reminder.",
+          );
+          nav.navigate("settings");
+          return;
+        }
+        const task = current.data?.tasks.find((item) => item.id === taskId);
+        nav.navigate("tasks");
+        latest.current.tasks.setTaskFilter("all");
+        if (task) latest.current.tasks.editTask(task);
+        return;
+      }
       if (
         !planner ||
         !isCalendarDate(day) ||
@@ -47,6 +66,11 @@ export function useReminderNavigation(
       if (url.searchParams.has("planner")) {
         url.searchParams.delete("planner");
         url.searchParams.delete("date");
+        window.history.replaceState(null, "", url.href);
+      }
+      if (url.searchParams.has("task")) {
+        url.searchParams.delete("task");
+        url.searchParams.delete("profile");
         window.history.replaceState(null, "", url.href);
       }
     }

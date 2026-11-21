@@ -134,7 +134,7 @@ function WorkspaceApplication({
     sharing.manageAll
   );
   useEffect(() => accounts.setEditing(editing), [accounts.setEditing, editing]);
-  useReminderNavigation(workspace, studio, navigation);
+  useReminderNavigation(workspace, studio, navigation, tasks, feedback.notify);
   const { data, active, p } = workspace;
   if (!data || !active || !p || !studio.canvasProps)
     return <WorkspaceLoading loadError={workspace.loadError} />;

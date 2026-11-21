@@ -64,6 +64,13 @@ export type Schedule = {
   termEnd?: string;
   holidays?: Holiday[];
 };
+export type Subtask = { id: string; title: string; done: boolean };
+export type TaskRecurrence = {
+  frequency: "daily" | "weekly" | "monthly";
+  interval: number;
+  anchorDate: string;
+  until?: string;
+};
 export type Task = {
   id: string;
   title: string;
@@ -71,6 +78,11 @@ export type Task = {
   due: string;
   priority: "low" | "medium" | "high";
   done: boolean;
+  subtasks?: Subtask[];
+  dueTime?: string;
+  reminderMinutes?: number;
+  recurrence?: TaskRecurrence;
+  seriesId?: string;
 };
 export type Preferences = {
   name: string;

@@ -1,6 +1,7 @@
-import type { Entry } from "../model";
+import type { Entry, Task } from "../model";
 import { formatTime } from "../model";
-import { reminderId } from "./reminderPlan";
+import { reminderId, taskReminderId } from "./reminderPlan";
+import { activeProfile } from "./deviceScope";
 import { serviceWorkerReady } from "./pushReminders";
 
 export async function showLocalReminder(
@@ -18,6 +19,31 @@ export async function showLocalReminder(
     url: `/?planner=${encodeURIComponent(scheduleId)}&date=${date}`,
     expiresAt: Date.now() + 120000,
   };
+  return deliverLocalReminder(payload);
+}
+export async function showLocalTaskReminder(task: Task, time24: boolean) {
+  const [hour, minute] = (task.dueTime || "09:00").split(":").map(Number);
+  const day = new Date(`${task.due}T12:00:00`).toLocaleDateString("en", {
+    month: "short",
+    day: "numeric",
+  });
+  return deliverLocalReminder({
+    type: "mochi-reminder",
+    id: await taskReminderId(task),
+    title: `Task deadline: ${task.title.slice(0, 100)}`,
+    body: `Due ${day}, ${formatTime(hour * 60 + minute, time24)}`,
+    url: `/?task=${encodeURIComponent(task.id)}&profile=${encodeURIComponent(activeProfile() || "device")}`,
+    expiresAt: Date.now() + 120000,
+  });
+}
+async function deliverLocalReminder(payload: {
+  type: string;
+  id: string;
+  title: string;
+  body: string;
+  url: string;
+  expiresAt: number;
+}) {
   try {
     const registration = await serviceWorkerReady();
     if (registration.active) {
@@ -42,14 +68,14 @@ export async function showLocalReminder(
     await registration.showNotification(payload.title, {
       body: payload.body,
       icon: "/icon-192.png",
-      tag: `mochi-${id}`,
+      tag: `mochi-${payload.id}`,
       data: { url: payload.url },
     });
   } catch {
     try {
       new Notification(payload.title, {
         body: payload.body,
-        tag: `mochi-${id}`,
+        tag: `mochi-${payload.id}`,
       });
     } catch {}
   }

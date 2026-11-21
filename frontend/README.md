@@ -48,6 +48,14 @@ The studio and saved planner cards open **Share this planner**. Create a read-on
 
 `/share/#token` renders a separate viewer before workspace hooks mount. It never switches profiles, starts account sync, reads/writes a recipient workspace, or enables reminders. The viewer offers week/day/month/list navigation, defaults to day view on phones, preserves artwork and date rules, and has no editing actions. Public APIs are network-only. Link tokens travel in headers, and password grants stay in memory. Visible viewers recheck access every 30 seconds, on focus/reconnection and at expiration; failed checks hide the copy. Read-only sharing cannot prevent recipients from keeping copies of content already viewed. See the [sharing and hosting guide](../README.md#shareable-planners).
 
+## Tasks and deadline notifications
+
+The task dialog supports up to 100 subtasks, optional deadline times, per-task notification lead times and daily/weekly/monthly repeats every 1–99 periods with an inclusive optional end date. Completing a parent checks its steps; unchecking a step reopens it. A repeating completion keeps history, creates one next copy and resets its steps. The next date follows the original cadence after both the current due date and today, so missed dates are skipped. Monthly repeats clamp short months and then return to the original day. Unchecking history retains the next copy. Existing copies keep their own settings; choosing **Does not repeat** on the pending copy stops its future generation.
+
+Task cards expose step progress, timed overdue status, repeat cadence and selected notifications. The **Repeating tasks** filter includes the series history. All fields persist through offline editing, file/server backups and account sync. Different ordinary subtasks merge by ID; repeating task series merge atomically and use deterministic next-copy IDs to avoid duplicates after concurrent completion. Keep-both conflict resolution gives copied task series independent identities.
+
+Deadline alerts use 0, 15, 30, 60 or 1440 minutes before the local deadline; an omitted time means 9:00 am. Gentle reminders provide the foreground/offline fallback, while background opt-in syncs selected pending deadlines to the server. Local and server alerts share delivery IDs and worker deduplication. Account sync atomically removes obsolete queued alerts after completion, deletion or deadline changes. Task notification links open the correct task, and mismatched workspace links show a switch-workspace message. Device notification permission and opt-in remain local; the task’s selected deadline alert is shared data.
+
 ## Calendar dates
 
 Open **Calendar dates** in the editor toolbar to set semester dates, add holidays or breaks, and restore cancelled occurrences. Both semester endpoints are included; either endpoint can be left empty. New planners also offer semester dates during creation.
@@ -76,7 +84,7 @@ Clearing site data clears local plans and the browser’s server-backup key; dow
 
 Reminders are optional and require notification permission. **Settings → A nudge, even when you’re away** enables background push separately on each device. Once its schedule is synced, the companion server can send reminders after the app closes. See [server setup](../README.md#background-reminders) for the one-time Web Push contact configuration and persistent signing keys. Use the production build or HTTPS deployment; the service worker is disabled during Vite development. iPhone/iPad requires installation to the Home Screen and permission from the installed app.
 
-Device schedule sync is independent of automatic backups. It sends only calendar/activity timing, titles and locations, including semester limits, holidays, cancellations and reschedules. Settings shows the device zone, last successful sync, last reminder sent, retry/setup states and subscription reconnection controls. Pending offline changes must sync before the server can use them. Turning off reminders unsubscribes locally even when offline and retries server cleanup after reconnecting. The server must remain running; notification delivery depends on browser, connection and device settings.
+Device schedule sync is independent of automatic backups. It sends calendar/activity timing, titles and locations, including semester limits, holidays, cancellations and reschedules, plus pending opted-in task titles/deadlines. Private subtask contents are excluded. Settings shows the device zone, last successful sync, last reminder sent, retry/setup states and subscription reconnection controls. Pending offline changes must sync before the server can use them. Turning off reminders unsubscribes locally even when offline and retries server cleanup after reconnecting. The server must remain running; notification delivery depends on browser, connection and device settings.
 
 **Reminders while open** retain the existing local reminders and daily overview. A synced background subscription takes priority; local and push delivery share an ID and worker deduplication to avoid repeated nudges. Selecting a notification opens the relevant planner and calendar date. Background choices are device-local and are not enabled or disabled by restoring workspace backups. Subscription expiry or changed server signing keys require reconnecting; no permission prompt appears during automatic sync.
 
@@ -110,6 +118,7 @@ The production dependency audit has no known advisories at the time of verificat
 - `src/services/deviceScope.ts`: profile-specific storage names and browser backup/reminder keys.
 - `src/hooks/useScheduleEditor.ts`: calendar navigation, activities, cancellations, drag/resize, and canvas measurements.
 - `src/hooks/usePlannerManager.ts`, `useTaskManager.ts`, and `useTemplateBrowser.ts`: feature state and actions.
+- `src/taskRules.ts`, `src/components/TaskOptionsFields.tsx` and `TaskCard.tsx`: task validation, repeat dates, completion, subtasks, timed deadlines and task controls.
 - `src/hooks/useScheduleCollection.ts`: responsive gallery sizing and pagination.
 - `src/hooks/useBackups.ts`: file import, backup history, safety copies and workspace restoration.
 - `src/hooks/useAutomaticBackups.ts` and `src/services/automaticBackups.ts`: automatic scheduling, one queued writer, retries, conflict protection and persisted backup status.

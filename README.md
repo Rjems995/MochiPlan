@@ -73,6 +73,16 @@ Changes to separate tasks, planners, settings or activity series merge automatic
 
 Both devices must use the **same reachable MochiPlan server**. `localhost` on a phone refers to the phone, so a computer’s localhost preview is only for local testing. For phone/computer use, host the Node server behind HTTPS, persist `backend/data`, set `HOST=0.0.0.0` when needed, add the public origin to `ALLOWED_ORIGINS`, and set `ACCOUNT_SECURE_COOKIES=true` in production. Keep the site and `/api` on the same origin. The app still runs without creating an account.
 
+## Tasks, subtasks and repeats
+
+Open **Little to-dos → Add a to-do**, or edit an existing task. Add up to 100 subtasks, check off steps directly in the list, and see progress for each task. Completing a parent finishes all its steps; unchecking a step reopens the parent. Step checks alone do not automatically complete the parent.
+
+Choose **Repeat** daily, weekly or monthly, every 1–99 periods, with an optional inclusive end date. A deadline is required. Completing a repeat keeps that occurrence in **Little wins**, creates the next copy and resets its steps. Overdue repeats skip missed dates and advance to the next future scheduled date. Monthly repeats preserve their original day, using the last day of shorter months and returning to the original day afterward. Already created copies keep their own settings. Unchecking a completed occurrence retains its next copy; completing it again does not create a duplicate. Choose **Does not repeat** on the pending copy to stop it, or delete that copy. Deleting one occurrence does not delete other copies.
+
+Choose a **Deadline notification** at the deadline, 15/30 minutes, one hour or 24 hours before. An optional deadline time uses this device’s local time zone; alerts without a time use 9:00 am. Enable **gentle reminders** for alerts while open, or **background reminders** in Settings for delivery with the app closed. Each task opts in separately. Completed and deleted tasks stop contributing alerts after their changes sync. Offline changes must reach the server before closed-app reminders can use them; previously delivered notifications cannot be recalled.
+
+Tasks, subtasks, repeat settings and selected alerts save offline, travel in backups and sync with optional accounts. Concurrent completion uses stable IDs for the next copy. Overlapping edits to a repeating task series pause for a conflict choice; different subtasks of an ordinary task can merge independently. Notification permission and background opt-in remain device-local. Selecting a task notification opens its task editor; a reminder for another workspace asks you to switch to that workspace.
+
 ## Background reminders
 
 Install the updated dependencies with `npm install`. Before starting the server, set a real Web Push contact address in PowerShell:
@@ -87,9 +97,9 @@ Replace the example email with your contact address. Open **http://127.0.0.1:417
 
 Keep the server running with internet access. After the reminder schedule has synced, notifications can arrive with MochiPlan closed. Production hosting needs HTTPS; localhost works for testing. On iPhone or iPad, install the Home Screen app and enable reminders from there. Delivery can be delayed by device settings or connectivity.
 
-Each device opts in separately and uses its own time zone. The server respects semesters, holidays, cancellations and all edit scopes. Reminder sync is independent of automatic backups and uploads only activity timing, titles, locations and calendar rules. Settings shows the last successful schedule sync and last reminder accepted by the push service. Offline edits must sync before the server can use them. Turning reminders off unsubscribes the device immediately and retries server cleanup after reconnection.
+Each device opts in separately and uses its own time zone. The server respects semesters, holidays, cancellations and all edit scopes. Reminder sync is independent of automatic backups and uploads only activity timing, titles, locations, calendar rules, and pending opted-in task titles/deadlines. Subtask contents are excluded. Settings shows the last successful schedule sync and last reminder accepted by the push service. Offline edits must sync before the server can use them. Turning reminders off unsubscribes the device immediately and retries server cleanup after reconnection.
 
-**Reminders while open** remain available as an optional local fallback. Push and local reminders use matching IDs to avoid duplicate nudges. The worker opens the relevant planner and date when a notification is selected. Server jobs and recent delivery IDs persist across restarts; temporary errors retry briefly, expired subscriptions require reconnecting, and reminders more than five minutes overdue are skipped.
+**Reminders while open** remain available as an optional local fallback. Push and local reminders use matching IDs to avoid duplicate nudges. The worker opens the relevant planner/date or task when a notification is selected, preserving any separate shared-planner tab. Server jobs and recent delivery IDs persist across restarts; temporary errors retry briefly, expired subscriptions require reconnecting, and reminders more than five minutes overdue are skipped.
 
 ## Checks
 

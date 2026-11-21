@@ -1,0 +1,227 @@
+.task-edit-form {
+  font-size: 16px;
+}
+.modal:has(.task-edit-form) .modal-heading p {
+  font-size: 16px;
+  line-height: 1.65;
+}
+.task-item .priority-badge {
+  font-size: 13px;
+}
+.page-tasks .filter-pills button {
+  font-size: 14px;
+}
+.page-tasks .empty-state p {
+  font-size: 16px;
+}
+.task-progress > div:first-child {
+  font-size: 14px;
+  color: var(--muted);
+}
+.task-progress > small {
+  font-size: 13px;
+  color: var(--muted);
+}
+.task-edit-form .field-label {
+  font-size: 14px;
+}
+.task-edit-form input,
+.task-edit-form select {
+  font-size: 16px;
+  min-width: 0;
+}
+.task-edit-form .button {
+  font-size: 14px;
+}
+.task-options-fields {
+  margin-top: 18px;
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+}
+.task-field-hint,
+.task-reminder-help p {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.task-edit-form .field-label .task-field-hint {
+  font-size: 13px;
+  line-height: 1.7;
+  text-align: left;
+  float: none;
+  display: block;
+  margin-top: 6px;
+}
+.task-repeat-help {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: -6px 0 22px;
+}
+.task-repeat-help svg {
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+.task-reminder-help {
+  padding: 13px 16px;
+  border-radius: 10px;
+  background: var(--page);
+  margin-bottom: 22px;
+}
+.task-reminder-help p {
+  margin: 0;
+}
+.task-reminder-help .text-button {
+  font-size: 14px;
+  margin-top: 10px;
+}
+.task-subtask-editor {
+  border: 0;
+  padding: 0;
+  margin: 22px 0 0;
+}
+.task-subtask-editor legend {
+  font-size: 18px;
+  margin-bottom: 14px;
+}
+.task-subtask-draft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.task-subtask-draft input:not([type="checkbox"]) {
+  flex: 1;
+  min-width: 0;
+}
+.task-subtask-draft input[type="checkbox"],
+.task-subtasks input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--pink);
+  flex-shrink: 0;
+}
+.task-subtask-editor .button {
+  margin-top: 8px;
+}
+.task-subtask-editor > p {
+  margin-top: 12px;
+}
+.task-form-error {
+  padding: 14px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  font-size: 16px;
+  margin-top: 20px;
+}
+.task-item {
+  border-bottom: 1px solid var(--line);
+}
+.task-item:last-child {
+  border-bottom: 0;
+}
+.task-item .task-row {
+  border-bottom: 0;
+}
+.task-item .task-details {
+  min-width: 0;
+}
+.task-item .task-details strong {
+  font-size: 16px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.task-item .task-details small {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+.task-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.task-flags > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.task-overdue .task-details small {
+  color: #9b4058;
+}
+.task-subtasks {
+  padding: 0 0 20px 37px;
+}
+.task-subtasks progress {
+  appearance: none;
+  border: 0;
+  background: var(--pink-light);
+  border-radius: 5px;
+  overflow: hidden;
+  width: min(200px, 100%);
+  height: 6px;
+  display: block;
+  accent-color: var(--pink);
+  margin: 0 0 13px;
+}
+.task-subtasks progress::-webkit-progress-bar {
+  background: var(--pink-light);
+  border-radius: 5px;
+}
+.task-subtasks progress::-webkit-progress-value {
+  background: var(--pink);
+  border-radius: 5px;
+}
+.task-subtasks progress::-moz-progress-bar {
+  background: var(--pink);
+  border-radius: 5px;
+}
+.task-subtasks ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 12px;
+}
+.task-subtasks label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.task-subtasks label span {
+  overflow-wrap: anywhere;
+}
+.task-subtasks .subtask-done span {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+.dark-mode .task-overdue .task-details small {
+  color: #efafbd;
+}
+@media (max-width: 600px) {
+  .task-edit-form .two-fields {
+    grid-template-columns: 1fr;
+  }
+  .task-item .task-row {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 18px 0;
+  }
+  .task-item .task-details {
+    flex-basis: calc(100% - 40px);
+  }
+  .task-item .priority-badge {
+    margin-left: 32px;
+  }
+  .task-subtasks {
+    padding-left: 32px;
+  }
+  .task-subtask-draft {
+    gap: 7px;
+  }
+}

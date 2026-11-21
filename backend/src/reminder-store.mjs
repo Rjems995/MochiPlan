@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { HttpError } from "./errors.mjs";
 import { planHash, validateReminderPlan } from "./reminder-plan.mjs";
+import { reminderTasks } from "./task-reminders.mjs";
 
 export class ReminderStore {
   constructor(db) {
@@ -276,7 +277,12 @@ export class ReminderStore {
       const previous = JSON.parse(device.plan);
       let plan;
       try {
-        plan = validateReminderPlan({ ...previous, schedules: data.schedules });
+        plan = validateReminderPlan({
+          ...previous,
+          schedules: data.schedules,
+          tasks: reminderTasks(data.tasks),
+          profileId: accountId,
+        });
       } catch (error) {
         if (!(error instanceof HttpError)) throw error;
         this.db

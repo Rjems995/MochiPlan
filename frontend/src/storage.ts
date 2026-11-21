@@ -2,6 +2,7 @@ import Dexie, { type Table } from "dexie";
 import type { AppData, Entry } from "./model";
 import { validSeriesMetadata } from "./series.ts";
 import { isCalendarDate, weekdayForDate } from "./calendar.ts";
+import { validTaskExtensions } from "./taskRules.ts";
 import { activeProfile, workspaceRecord } from "./services/deviceScope.ts";
 export type SyncCheckpoint = {
   id: string;
@@ -276,19 +277,23 @@ export function validateBackup(value: unknown): AppData {
   }
   if (!ids.has(d.activeId))
     throw Error("The active planner is missing from the backup.");
+  const taskIds = new Set();
   for (const t of d.tasks) {
     if (
       !isRecord(t) ||
       !text(t.id) ||
+      !t.id ||
+      taskIds.has(t.id) ||
+      !validTaskExtensions(t) ||
       !text(t.title) ||
       typeof t.done !== "boolean" ||
       !text(t.due) ||
       !text(t.subject) ||
       !["low", "medium", "high"].includes(t.priority as string) ||
-      (t.due !== "" &&
-        (!/^\d{4}-\d{2}-\d{2}$/.test(t.due) || Number.isNaN(Date.parse(t.due))))
+      (t.due !== "" && !isCalendarDate(t.due))
     )
       throw Error("A task in the backup is invalid.");
+    taskIds.add(t.id);
   }
   const p = d.preferences;
   if (

@@ -2,6 +2,7 @@ import { Check } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
 import { type Task } from "../model";
 import { Modal } from "./Modal";
+import { TaskOptionsFields } from "./TaskOptionsFields";
 export function TaskDialog() {
   const {
     data,
@@ -18,6 +19,7 @@ export function TaskDialog() {
       setTaskDue,
       taskPriority,
       setTaskPriority,
+      taskError,
     },
   } = useAppContext();
   return (
@@ -27,8 +29,10 @@ export function TaskDialog() {
           title={taskEdit ? "A little task edit" : "One little thing to do"}
           subtitle="Small steps count, too."
           onClose={() => setTaskModal(false)}
+          wide
         >
           <form
+            className="task-edit-form"
             onSubmit={(ev) => {
               ev.preventDefault();
               saveTask();
@@ -87,6 +91,12 @@ export function TaskDialog() {
                 </select>
               </label>
             </div>
+            <TaskOptionsFields />
+            {taskError && (
+              <p className="task-form-error" role="alert">
+                {taskError}
+              </p>
+            )}
             <div className="modal-actions">
               <button
                 type="button"

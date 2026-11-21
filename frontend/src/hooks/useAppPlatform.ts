@@ -3,7 +3,11 @@ import { useEffect, useRef, useState } from "react";
 import { dateKey, entriesOnDate } from "../calendar";
 import type { Preferences } from "../model";
 import { type AppData, formatTime } from "../model";
-import { showLocalReminder } from "../services/localReminder";
+import {
+  showLocalReminder,
+  showLocalTaskReminder,
+} from "../services/localReminder";
+import { taskNotificationDue } from "../taskRules";
 import { serviceWorkerReady } from "../services/pushReminders";
 type InstallPrompt = Event & {
   prompt: () => Promise<void>;
@@ -69,6 +73,16 @@ export function useAppPlatform(
           );
         }
       }
+    for (const task of data.tasks) {
+      const key = `task:${task.id}:${task.due}:${task.dueTime || "09:00"}:${task.reminderMinutes}`;
+      if (
+        taskNotificationDue(task, now.getTime()) &&
+        !notified.current.has(key)
+      ) {
+        notified.current.add(key);
+        void showLocalTaskReminder(task, data.preferences.time24);
+      }
+    }
   }, [now, data, backgroundRemindersActive]);
   async function installApp() {
     if (install) {

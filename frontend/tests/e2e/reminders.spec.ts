@@ -5,6 +5,7 @@ import { generateVAPIDKeys } from "web-push";
 import { createApp } from "../../../backend/src/server.mjs";
 import { loadPushConfig } from "../../../backend/src/push-config.mjs";
 import { workspace } from "../../../backend/tests/fixture.mjs";
+import { toggleTaskCompletion } from "../../src/taskRules";
 
 test.use({ timezoneId: "Asia/Manila" });
 const config = loadPushConfig({
@@ -124,6 +125,249 @@ async function device(page: Page) {
     };
   });
 }
+
+function taskWorkspace() {
+  const data = workspace();
+  data.schedules[0].entries = [];
+  data.tasks[0] = {
+    ...data.tasks[0],
+    title: "Submit reading journal",
+    due: "2026-11-16",
+    dueTime: "09:05",
+    reminderMinutes: 15,
+    seriesId: "reading",
+    recurrence: { frequency: "daily", interval: 1, anchorDate: "2026-11-16" },
+    subtasks: [{ id: "notes", title: "Private reading notes", done: false }],
+  };
+  return data;
+}
+test("task deadline push arrives with the app closed, deduplicates and opens the correct task", async ({
+  page,
+  context,
+}) => {
+  const api = await start(page, context);
+  try {
+    await page.goto("/");
+    await settings(page);
+    await restoreFixture(page, taskWorkspace());
+    await page
+      .getByRole("button", { name: "Enable background reminders", exact: true })
+      .click();
+    await expect(page.locator(".reminder-device-status")).toContainText(
+      "Background reminders are on",
+    );
+    const inspector = await context.newPage(),
+      cdp = await context.newCDPSession(inspector);
+    let registrationId = "";
+    cdp.on("ServiceWorker.workerRegistrationUpdated", (event) => {
+      registrationId =
+        event.registrations.find(
+          (item) => item.scopeURL === "http://127.0.0.1:4173/",
+        )?.registrationId || registrationId;
+    });
+    await cdp.send("ServiceWorker.enable");
+    await expect.poll(() => registrationId).not.toBe("");
+    await page.close();
+    api.advance(60000);
+    await api.server.reminderScheduler.tick();
+    await api.server.reminderScheduler.tick();
+    expect(api.received).toHaveLength(1);
+    const payload = api.received[0].payload;
+    expect(payload.title).toBe("Task deadline: Submit reading journal");
+    expect(payload.body).not.toContain("Private reading notes");
+    payload.expiresAt = Date.now() + 120000;
+    await cdp.send("ServiceWorker.deliverPushMessage", {
+      origin: "http://127.0.0.1:4173",
+      registrationId,
+      data: JSON.stringify(payload),
+    });
+    const reopened = await context.newPage();
+    await reopened.goto("/");
+    await expect
+      .poll(() =>
+        reopened.evaluate(async () =>
+          (await (await navigator.serviceWorker.ready).getNotifications()).map(
+            (item) => item.title,
+          ),
+        ),
+      )
+      .toContain("Task deadline: Submit reading journal");
+    await reopened.evaluate(async () => {
+      for (const notification of await (
+        await navigator.serviceWorker.ready
+      ).getNotifications())
+        notification.close();
+    });
+    await cdp.send("ServiceWorker.deliverPushMessage", {
+      origin: "http://127.0.0.1:4173",
+      registrationId,
+      data: JSON.stringify(payload),
+    });
+    expect(
+      await reopened.evaluate(
+        async () =>
+          (await (await navigator.serviceWorker.ready).getNotifications())
+            .length,
+      ),
+    ).toBe(0);
+    await reopened.goto(payload.url);
+    await expect(
+      reopened
+        .getByRole("dialog", { name: "A little task edit", exact: true })
+        .getByPlaceholder("Finish my moodboard"),
+    ).toHaveValue("Submit reading journal");
+    await cdp.detach();
+    await inspector.close();
+  } finally {
+    await api.close();
+  }
+});
+
+test("task deadline notifications work locally while open without a background subscription", async ({
+  page,
+  context,
+}) => {
+  const api = await start(page, context, false),
+    realNow = Date.now();
+  try {
+    await page.clock.install({ time: new Date(realNow) });
+    await page.goto("/");
+    await settings(page);
+    const data = taskWorkspace();
+    const deadline = await page.evaluate((time) => {
+      const value = new Date(time);
+      return {
+        due: `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`,
+        time: `${String(value.getHours()).padStart(2, "0")}:${String(value.getMinutes()).padStart(2, "0")}`,
+      };
+    }, realNow + 120000);
+    data.tasks[0] = {
+      ...data.tasks[0],
+      recurrence: undefined,
+      seriesId: undefined,
+      due: deadline.due,
+      dueTime: deadline.time,
+      reminderMinutes: 0,
+    };
+    data.preferences.reminders = true;
+    await restoreFixture(page, data);
+    await page.clock.fastForward(120000);
+    await expect
+      .poll(() =>
+        page.evaluate(async () =>
+          (await (await navigator.serviceWorker.ready).getNotifications()).map(
+            (item) => item.title,
+          ),
+        ),
+      )
+      .toContain("Task deadline: Submit reading journal");
+    expect(api.received).toHaveLength(0);
+    await page.evaluate(async () => {
+      for (const notification of await (
+        await navigator.serviceWorker.ready
+      ).getNotifications())
+        notification.close();
+    });
+  } finally {
+    await api.close();
+  }
+});
+
+test("account task completion cancels closed-device alerts and syncs the next recurring deadline", async ({
+  page,
+  context,
+}) => {
+  const api = await start(page, context);
+  try {
+    await page.goto("/");
+    await settings(page);
+    await restoreFixture(page, taskWorkspace());
+    await page
+      .getByRole("button", { name: "Create account", exact: true })
+      .click();
+    const form = page.locator(".account-form");
+    await form.getByLabel("Username", { exact: true }).fill("task_student");
+    await form
+      .getByLabel("Password", { exact: true })
+      .fill("a-long-task-account-password");
+    await page
+      .getByRole("button", { name: "Create my account", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "I’ve saved my code", exact: true })
+      .click();
+    await settings(page);
+    await expect(page.locator(".account-sync-status")).toContainText(
+      "Your account plans are up to date.",
+    );
+    await page
+      .getByRole("button", { name: "Enable background reminders", exact: true })
+      .click();
+    await expect(page.locator(".reminder-device-status")).toContainText(
+      "Background reminders are on",
+    );
+    const identity = await device(page),
+      session = await page.evaluate(async () =>
+        (await fetch("/api/account/session")).json(),
+      );
+    const cookie = (await context.cookies()).find(
+      (item) => item.name === "mochiplan_session",
+    )!;
+    const headers = {
+      Origin: "http://127.0.0.1:4173",
+      "Content-Type": "application/json",
+      Cookie: `${cookie.name}=${cookie.value}`,
+      "X-Mochi-CSRF": session.csrfToken,
+      "X-Mochi-Account": session.user.id,
+    };
+    await expect
+      .poll(
+        async () =>
+          (
+            await (
+              await fetch(`${api.base}/api/push/devices/${identity.id}`, {
+                headers: {
+                  ...headers,
+                  Authorization: `Bearer ${identity.key}`,
+                },
+              })
+            ).json()
+          ).accountLinked,
+      )
+      .toBe(true);
+    await page.close();
+    const snapshot = await (
+      await fetch(`${api.base}/api/sync/workspace`, { headers })
+    ).json();
+    snapshot.data.tasks = toggleTaskCompletion(
+      snapshot.data.tasks,
+      "task",
+      "2026-11-16",
+    );
+    const response = await fetch(`${api.base}/api/sync/workspace`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({
+        version: 1,
+        revision: snapshot.revision,
+        data: snapshot.data,
+      }),
+    });
+    expect(response.ok).toBe(true);
+    api.advance(60000);
+    await api.server.reminderScheduler.tick();
+    expect(api.received).toHaveLength(0);
+    const row = api.server.reminderScheduler.store.row(
+        identity.key,
+        identity.id,
+      ),
+      plan = JSON.parse(row.plan);
+    expect(plan.tasks).toHaveLength(1);
+    expect(plan.tasks[0].due).toBe("2026-11-17");
+  } finally {
+    await api.close();
+  }
+});
 
 test("server schedules a reminder with the app closed; the service worker displays and deduplicates push", async ({
   page,

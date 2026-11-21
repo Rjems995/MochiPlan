@@ -2,6 +2,7 @@ import { createHash, ECDH } from "node:crypto";
 import { DateTime } from "luxon";
 import { HttpError } from "./errors.mjs";
 import { validSeriesMetadata } from "./series-validation.mjs";
+import { dueTaskReminders, validateReminderTasks } from "./task-reminders.mjs";
 
 const object = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 const text = (v, max = 10000) => typeof v === "string" && v.length <= max;
@@ -196,6 +197,11 @@ export function validateReminderPlan(value) {
       entries: items,
     };
   });
+  const tasks = validateReminderTasks(value.tasks);
+  ensure(
+    value.profileId === undefined || identifier(value.profileId),
+    "The reminder workspace is invalid.",
+  );
   return JSON.parse(
     JSON.stringify({
       version: 1,
@@ -203,6 +209,9 @@ export function validateReminderPlan(value) {
       minutes: value.minutes,
       time24: value.time24,
       schedules,
+      ...(tasks.length
+        ? { tasks, ...(value.profileId ? { profileId: value.profileId } : {}) }
+        : {}),
     }),
   );
 }
@@ -266,5 +275,5 @@ export function dueReminders(plan, now, since = now - 300000) {
           },
         });
       }
-  return jobs;
+  return [...jobs, ...dueTaskReminders(plan, now, since)];
 }

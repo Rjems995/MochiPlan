@@ -124,9 +124,13 @@
           type: "window",
           includeUncontrolled: true,
         });
-        const client = clients.find(
-          (c) => new URL(c.url).origin === self.location.origin,
-        );
+        const client = clients.find((candidate) => {
+          const location = new URL(candidate.url);
+          return (
+            location.origin === self.location.origin &&
+            !/^\/share\/?$/.test(location.pathname)
+          );
+        });
         if (client) {
           await client.focus();
           client.postMessage({ type: "MOCHI_OPEN_REMINDER", url });

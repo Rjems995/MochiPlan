@@ -1,26 +1,29 @@
-import { format, parseISO } from "date-fns";
-import {
-  CheckCircle2,
-  Circle,
-  ListTodo,
-  Pencil,
-  Plus,
-  Trash2,
-} from "lucide-react";
+import { ListTodo, Plus } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
+import { TaskCard } from "../components/TaskCard";
+import { taskIsOverdue } from "../taskRules";
 export function TasksPage() {
   const {
     data,
-    tasks: {
-      addTask,
-      taskFilter,
-      setTaskFilter,
-      toggleTask,
-      editTask,
-      deleteTask,
-    },
+    tasks: { addTask, taskFilter, setTaskFilter },
     platform: { now },
   } = useAppContext();
+  const visibleTasks = data.tasks
+    .filter(
+      (task) =>
+        taskFilter === "all" ||
+        (taskFilter === "pending" && !task.done) ||
+        (taskFilter === "done" && task.done) ||
+        (taskFilter === "overdue" && taskIsOverdue(task, now)) ||
+        (taskFilter === "recurring" && !!task.recurrence),
+    )
+    .sort(
+      (a, b) =>
+        Number(a.done) - Number(b.done) ||
+        `${a.due || "9999"}T${a.dueTime || "23:59"}`.localeCompare(
+          `${b.due || "9999"}T${b.dueTime || "23:59"}`,
+        ),
+    );
 
   return (
     <>
@@ -70,6 +73,7 @@ export function TasksPage() {
           { id: "pending", label: "A little to do" },
           { id: "done", label: "Little wins" },
           { id: "overdue", label: "Needs a little love" },
+          { id: "recurring", label: "Repeating tasks" },
         ].map((f) => (
           <button
             key={f.id}
@@ -81,57 +85,16 @@ export function TasksPage() {
         ))}
       </div>
       <div className="task-list content-card">
-        {data.tasks
-          .filter(
-            (t) =>
-              taskFilter === "all" ||
-              (taskFilter === "pending" && !t.done) ||
-              (taskFilter === "done" && t.done) ||
-              (taskFilter === "overdue" &&
-                !t.done &&
-                t.due &&
-                t.due < format(now, "yyyy-MM-dd")),
-          )
-          .sort(
-            (a, b) =>
-              Number(a.done) - Number(b.done) ||
-              (a.due || "9999").localeCompare(b.due || "9999"),
-          )
-          .map((t) => (
-            <div className={`task-row ${t.done ? "completed" : ""}`} key={t.id}>
-              <button
-                className="task-check"
-                aria-label={`${t.done ? "Uncomplete" : "Complete"} ${t.title}`}
-                onClick={() => toggleTask(t.id)}
-              >
-                {t.done ? <CheckCircle2 size={22} /> : <Circle size={22} />}
-              </button>
-              <button className="task-details" onClick={() => editTask(t)}>
-                <strong>{t.title}</strong>
-                <small>
-                  {t.subject || "A little personal task"}
-                  {t.due && ` · ${format(parseISO(t.due), "MMM d, yyyy")}`}
-                </small>
-              </button>
-              <span className={`priority-badge ${t.priority}`}>
-                {t.priority}
-              </span>
-              <button
-                className="icon-button"
-                aria-label={`Edit ${t.title}`}
-                onClick={() => editTask(t)}
-              >
-                <Pencil size={15} />
-              </button>
-              <button
-                className="icon-button danger"
-                aria-label={`Delete ${t.title}`}
-                onClick={() => deleteTask(t.id)}
-              >
-                <Trash2 size={15} />
-              </button>
-            </div>
-          ))}
+        {visibleTasks.map((t) => (
+          <TaskCard key={t.id} task={t} />
+        ))}
+        {!!data.tasks.length && !visibleTasks.length && (
+          <div className="empty-state">
+            <ListTodo size={30} />
+            <h3>A little breathing room.</h3>
+            <p>No tasks match this view. Try another filter or add a to-do.</p>
+          </div>
+        )}
         {!data.tasks.length && (
           <div className="empty-state">
             <ListTodo size={34} />

@@ -1,5 +1,6 @@
 import { HttpError } from "./errors.mjs";
 import { validSeriesMetadata } from "./series-validation.mjs";
+import { validTaskExtensions } from "./task-validation.mjs";
 
 const object = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 const text = (v, max = 10000) => typeof v === "string" && v.length <= max;
@@ -196,7 +197,8 @@ export function validateWorkspace(body) {
             !Number.isNaN(Date.parse(task.due)) &&
             new Date(task.due).toISOString().slice(0, 10) === task.due)) &&
         oneOf(task.priority, ["low", "medium", "high"]) &&
-        bool(task.done),
+        bool(task.done) &&
+        validTaskExtensions(task, date),
       "A task is invalid.",
     );
     taskIds.add(task.id);

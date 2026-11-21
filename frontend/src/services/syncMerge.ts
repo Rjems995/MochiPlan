@@ -1,4 +1,4 @@
-import type { AppData, Entry, Schedule } from "../model";
+import type { AppData, Entry, Schedule, Task } from "../model";
 import { duplicateEntries } from "../series.ts";
 
 function canonical(value: unknown): unknown {
@@ -49,11 +49,38 @@ export function onThisDevice(shared: AppData, current: AppData): AppData {
     },
   };
 }
-function grouped(entries: Entry[]) {
-  const groups = new Map<string, Entry[]>();
+type GroupItem = { id: string; seriesId?: string };
+function taskGroupKey(items: GroupItem[]) {
+  const parents = new Map<string, string>();
+  const find = (id: string) => {
+    let root = id;
+    while (parents.has(root)) root = parents.get(root)!;
+    while (id !== root) {
+      const next = parents.get(id)!;
+      parents.set(id, root);
+      id = next;
+    }
+    return root;
+  };
+  // A task can acquire or change a series while another device still has its old identity.
+  for (const item of items) {
+    if (!item.seriesId) continue;
+    const original = find(item.id),
+      series = find(item.seriesId);
+    if (original !== series) parents.set(original, series);
+  }
+  return (item: GroupItem) => find(item.seriesId || item.id);
+}
+function grouped<T extends GroupItem>(
+  entries: T[],
+  key: (item: T) => string = (item) => item.seriesId || item.id,
+) {
+  const groups = new Map<string, T[]>();
   for (const entry of entries) {
-    const id = entry.seriesId || entry.id;
-    groups.set(id, [...(groups.get(id) || []), entry]);
+    const id = key(entry);
+    const group = groups.get(id);
+    if (group) group.push(entry);
+    else groups.set(id, [entry]);
   }
   return Object.fromEntries(
     [...groups].map(([id, list]) => [
@@ -77,12 +104,36 @@ function mergeValue(
     return remote;
   }
   if (Array.isArray(local) && Array.isArray(remote)) {
-    if (path.endsWith(".entries")) {
-      const b = grouped(base || []),
-        l = grouped(local),
-        r = grouped(remote),
-        output: Entry[] = [];
+    if (
+      path.endsWith(".entries") ||
+      (path === "workspace.tasks" &&
+        [...local, ...remote, ...(base || [])].some((task) => task.seriesId))
+    ) {
+      const groupKey =
+        path === "workspace.tasks"
+          ? taskGroupKey([...(base || []), ...local, ...remote])
+          : undefined;
+      const b = grouped(base || [], groupKey),
+        l = grouped(local, groupKey),
+        r = grouped(remote, groupKey),
+        output: any[] = [];
       for (const id of new Set([...Object.keys(r), ...Object.keys(l)])) {
+        if (
+          path === "workspace.tasks" &&
+          ![...(b[id] || []), ...(l[id] || []), ...(r[id] || [])].some(
+            (task) => task.seriesId,
+          )
+        ) {
+          const value = mergeValue(
+            b[id]?.[0],
+            l[id]?.[0],
+            r[id]?.[0],
+            `${path}.${id}`,
+            conflicts,
+          );
+          if (value !== undefined) output.push(value);
+          continue;
+        }
         if (same(l[id], r[id]) || same(r[id], b[id]))
           output.push(...(l[id] || []));
         else if (same(l[id], b[id])) output.push(...(r[id] || []));
@@ -197,7 +248,31 @@ export function keepBothWorkspaces(local: AppData, remote: AppData): AppData {
         },
       });
   }
+  const groupKey = taskGroupKey([...local.tasks, ...remote.tasks]);
+  const localTaskGroups = grouped(local.tasks, groupKey),
+    remoteTaskGroups = grouped(remote.tasks, groupKey),
+    copiedSeries = new Set<string>();
   for (const task of local.tasks) {
+    const groupId = groupKey(task),
+      group = localTaskGroups[groupId];
+    if (group.some((item) => item.seriesId)) {
+      if (copiedSeries.has(groupId)) continue;
+      copiedSeries.add(groupId);
+      const other = remoteTaskGroups[groupId];
+      if (!other) tasks.push(...structuredClone(group));
+      else if (!same(group, other)) {
+        const seriesId = id();
+        tasks.push(
+          ...group.map((item) => ({
+            ...structuredClone(item),
+            id: id(),
+            seriesId,
+            title: `${item.title} (from this device)`,
+          })),
+        );
+      }
+      continue;
+    }
     const existing = tasks.find((t) => t.id === task.id);
     if (!existing) tasks.push(structuredClone(task));
     else if (!same(existing, task))

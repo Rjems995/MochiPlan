@@ -19,6 +19,7 @@ import { shareRoutes } from "./share-routes.mjs";
 import { loadPushConfig, createPushSender } from "./push-config.mjs";
 import { ReminderStore } from "./reminder-store.mjs";
 import { ReminderScheduler } from "./reminder-scheduler.mjs";
+import { reminderTasks } from "./task-reminders.mjs";
 import {
   validDeviceId,
   validateReminderPlan,
@@ -205,7 +206,13 @@ export function createApp({
               shared = linkedKey && store.get(linkedKey)?.data;
             const plan = validateReminderPlan(
               shared
-                ? { ...body?.plan, schedules: shared.schedules }
+                ? {
+                    ...body?.plan,
+                    schedules: shared.schedules,
+                    tasks: reminderTasks(shared.tasks),
+                    profileId:
+                      req.headers["x-mochi-account"] || body?.plan?.profileId,
+                  }
                 : body?.plan,
             );
             sendJson(
