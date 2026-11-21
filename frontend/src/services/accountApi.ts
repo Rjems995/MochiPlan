@@ -9,6 +9,15 @@ export type AccountSession = {
   csrfToken: string;
   expiresAt: string;
   recoveryCode?: string;
+  sessionId: string;
+};
+export type AccountDeviceSession = {
+  id: string;
+  device: string;
+  current: boolean;
+  createdAt: string;
+  lastActiveAt: string;
+  expiresAt: string;
 };
 export type SyncSnapshot = {
   revision: number;
@@ -37,7 +46,14 @@ export function createAccountApi() {
         headers: {
           ...(body ? { "Content-Type": "application/json" } : {}),
           ...(csrf && method !== "GET" ? { "X-Mochi-CSRF": csrf } : {}),
-          ...(path.startsWith("/sync/") || path === "/account/reminder-device"
+          ...(path.startsWith("/sync/") ||
+          path.startsWith("/account/sessions") ||
+          [
+            "/account/reminder-device",
+            "/account/device",
+            "/account/password",
+            "/account",
+          ].includes(path)
             ? { "X-Mochi-Account": accountId }
             : {}),
         },
@@ -94,6 +110,42 @@ export function createAccountApi() {
     async logout() {
       await request("/account/session", "DELETE");
       csrf = "";
+    },
+    async sessions(): Promise<{
+      version: 1;
+      sessions: AccountDeviceSession[];
+    }> {
+      return request("/account/sessions");
+    },
+    async revokeSession(
+      id: string | "others",
+    ): Promise<{ version: 1; revoked: number; signedOut: boolean }> {
+      return request(
+        id === "others"
+          ? "/account/sessions"
+          : `/account/sessions/${encodeURIComponent(id)}`,
+        "DELETE",
+      );
+    },
+    async changePassword(currentPassword: string, newPassword: string) {
+      return session(
+        await request("/account/password", "PUT", {
+          currentPassword,
+          newPassword,
+        }),
+      );
+    },
+    async deleteAccount(currentPassword: string, confirmation: string) {
+      const result = await request("/account", "DELETE", {
+        currentPassword,
+        confirmation,
+      });
+      csrf = "";
+      accountId = "";
+      return result;
+    },
+    async registerDevice(workspaceKey: string) {
+      return request("/account/device", "PUT", { workspaceKey });
     },
     async linkReminders(deviceId: string, workspaceKey: string) {
       return request("/account/reminder-device", "PUT", {

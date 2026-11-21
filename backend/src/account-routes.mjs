@@ -11,7 +11,11 @@ export function accountRoutes({
   reminders,
 }) {
   return async (req, res, path) => {
-    if (!path.startsWith("/api/account/") && !path.startsWith("/api/sync/"))
+    if (
+      path !== "/api/account" &&
+      !path.startsWith("/api/account/") &&
+      !path.startsWith("/api/sync/")
+    )
       return false;
     const secureCookie =
       accounts.secureCookies ||
@@ -39,10 +43,94 @@ export function accountRoutes({
         body,
         req.socket.remoteAddress || "unknown",
         accounts.token(req),
+        req.headers["user-agent"],
+        (id, keep, next) => reminders.rotateAccountSessions(id, keep, next),
       );
       res.setHeader("Set-Cookie", accounts.cookie(result.token, secureCookie));
       sendJson(res, action === "register" ? 201 : 200, result.result);
       return true;
+    }
+    if (
+      path === "/api/account/password" ||
+      path === "/api/account" ||
+      path === "/api/account/device" ||
+      path.startsWith("/api/account/sessions")
+    ) {
+      const account = accounts.read(req, req.method !== "GET");
+      if (req.headers["x-mochi-account"] !== account.account_id)
+        throw new HttpError(
+          401,
+          "The signed-in account changed. Sign in again to manage this workspace.",
+        );
+      if (path === "/api/account/password" && req.method === "PUT") {
+        const body = await readJson(req, 4096);
+        const result = await accounts.changePassword(
+          req,
+          body,
+          req.socket.remoteAddress || "unknown",
+          req.headers["user-agent"],
+          (id, keep, next) => reminders.rotateAccountSessions(id, keep, next),
+        );
+        res.setHeader(
+          "Set-Cookie",
+          accounts.cookie(result.token, secureCookie),
+        );
+        sendJson(res, 200, result.result);
+        return true;
+      }
+      if (path === "/api/account" && req.method === "DELETE") {
+        const result = await accounts.deleteAccount(
+          req,
+          await readJson(req, 4096),
+          req.socket.remoteAddress || "unknown",
+          (id) => reminders.removeAccountDevices(id),
+        );
+        res.setHeader("Set-Cookie", accounts.cookie("", secureCookie));
+        sendJson(res, 200, result);
+        return true;
+      }
+      if (path === "/api/account/device" && req.method === "PUT") {
+        const body = await readJson(req, 4096);
+        sendJson(res, 200, accounts.registerDevice(req, body?.workspaceKey));
+        return true;
+      }
+      if (path === "/api/account/sessions") {
+        if (req.method === "GET") {
+          sendJson(res, 200, accounts.listSessions(req));
+          return true;
+        }
+        if (req.method === "DELETE") {
+          sendJson(
+            res,
+            200,
+            accounts.revokeSessions(req, "others", (id, sessions) =>
+              reminders.removeAccountDevices(id, sessions),
+            ),
+          );
+          return true;
+        }
+      }
+      const sessionRoute = /^\/api\/account\/sessions\/([^/]+)$/.exec(path);
+      if (sessionRoute && req.method === "DELETE") {
+        const result = accounts.revokeSessions(
+          req,
+          sessionRoute[1],
+          (id, sessions) => reminders.removeAccountDevices(id, sessions),
+        );
+        if (result.signedOut)
+          res.setHeader("Set-Cookie", accounts.cookie("", secureCookie));
+        sendJson(res, 200, result);
+        return true;
+      }
+      res.setHeader(
+        "Allow",
+        path === "/api/account/sessions"
+          ? "GET, DELETE"
+          : path === "/api/account/password" || path === "/api/account/device"
+            ? "PUT"
+            : "DELETE",
+      );
+      throw new HttpError(405, "Use the supported account management action.");
     }
     if (path === "/api/account/session") {
       if (req.method === "GET") {
@@ -50,7 +138,9 @@ export function accountRoutes({
         return true;
       }
       if (req.method === "DELETE") {
-        accounts.logout(req);
+        accounts.logout(req, (id, sessions) =>
+          reminders.removeAccountDevices(id, sessions),
+        );
         res.setHeader("Set-Cookie", accounts.cookie("", secureCookie));
         sendJson(res, 200, { version: 1, signedOut: true });
         return true;
@@ -65,6 +155,7 @@ export function accountRoutes({
         throw new HttpError(405, "Use PUT to link a reminder device.");
       }
       const body = await readJson(req, 4096);
+      accounts.read(req, true);
       if (
         !validDeviceId(body?.deviceId) ||
         !/^[a-f0-9]{64}$/.test(body?.workspaceKey) ||
@@ -77,6 +168,7 @@ export function accountRoutes({
         body.deviceId,
         workspaces.get(account.workspace_key)?.data,
         Date.now(),
+        account.session_id,
       );
       sendJson(res, 200, { version: 1, linked: true });
       return true;
@@ -96,6 +188,7 @@ export function accountRoutes({
       if (req.method === "PUT") {
         const body = await readJson(req, maxBodyBytes),
           data = validateWorkspace(body);
+        accounts.read(req, true);
         // Navigation and notification choices stay on the device.
         const shared = structuredClone(data);
         shared.activeId = shared.schedules[0].id;

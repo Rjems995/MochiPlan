@@ -504,8 +504,18 @@ test("account edits update linked background reminders while the device app is c
     await expect(page.locator(".reminder-device-status")).toContainText(
       "Background reminders are on",
     );
-    const identity = await device(page),
-      deviceHeaders = { Authorization: `Bearer ${identity.key}` };
+    const identity = await device(page);
+    const session = await page.evaluate(async () =>
+      (await fetch("/api/account/session")).json(),
+    );
+    const cookie = (await context.cookies()).find(
+      (c) => c.name === "mochiplan_session",
+    )!;
+    const deviceHeaders = {
+      Authorization: `Bearer ${identity.key}`,
+      Cookie: `${cookie.name}=${cookie.value}`,
+      "X-Mochi-Account": session.user.id,
+    };
     await expect
       .poll(
         async () =>
@@ -518,12 +528,6 @@ test("account edits update linked background reminders while the device app is c
           ).accountLinked,
       )
       .toBe(true);
-    const session = await page.evaluate(async () =>
-      (await fetch("/api/account/session")).json(),
-    );
-    const cookie = (await context.cookies()).find(
-      (c) => c.name === "mochiplan_session",
-    )!;
     const headers = {
       Origin: "http://127.0.0.1:4173",
       "Content-Type": "application/json",

@@ -74,6 +74,25 @@ export function saveSyncCheckpoint(checkpoint: SyncCheckpoint, data?: AppData) {
   queue = write;
   return write;
 }
+export function forgetAccountProfile(id: string) {
+  const write = queue
+    .catch(() => {})
+    .then(() =>
+      db.transaction("rw", db.state, db.sync, async () => {
+        await db.state.bulkDelete([workspaceRecord(id), `restore-point:${id}`]);
+        await db.sync.delete(id);
+      }),
+    );
+  queue = write;
+  return write.then(() => {
+    const keys = Object.keys(localStorage).filter(
+      (key) => key.startsWith("mochiplan-") && key.endsWith(`:${id}`),
+    );
+    for (const key of keys) localStorage.removeItem(key);
+    if (localStorage.getItem("mochiplan-pending-signout") === id)
+      localStorage.removeItem("mochiplan-pending-signout");
+  });
+}
 export function download(url: string, name: string) {
   const a = document.createElement("a");
   a.href = url;

@@ -205,19 +205,24 @@ export function useWorkspace(notify: (text: string) => void) {
     redo.current = [];
     setData(restored);
   }
-  async function switchProfile(id: string | null, initial?: AppData) {
+  async function switchProfile(
+    id: string | null,
+    initial?: AppData,
+    options: { discardCurrent?: boolean } = {},
+  ) {
     setSwitchingProfile(true);
     const previous = currentData.current,
       previousProfile = profileRef.current;
     try {
-      if (previous) await saveData(previous, previousProfile);
+      if (previous && !options.discardCurrent)
+        await saveData(previous, previousProfile);
       const next = (await loadData(id)) || structuredClone(initial || seed());
-      if (currentData.current !== previous)
+      if (currentData.current !== previous && !options.discardCurrent)
         throw Error(
           "Your plans changed while switching workspaces. Try again after they finish saving.",
         );
       await saveData(next, id);
-      if (currentData.current !== previous)
+      if (currentData.current !== previous && !options.discardCurrent)
         throw Error(
           "Your plans changed while switching workspaces. They are safe; try switching again after saving.",
         );

@@ -52,19 +52,31 @@ Snapshot responses include `contentHash`, `updatedAt`, `source`, and a `summary`
 
 Accounts are optional and use usernames rather than email. Passwords are salted with Node scrypt (`N=131072`, `r=8`, `p=1`); at most two hashes run concurrently. Recovery codes contain 160 random bits, are stored only as hashes and rotate after each successful reset. Password resets revoke all existing sessions. Authentication attempts are limited in SQLite by username and remote IP over 15-minute windows. Forwarded IP headers are not trusted.
 
-| Method | Route                   | Purpose                                                                                   |
-| ------ | ----------------------- | ----------------------------------------------------------------------------------------- |
-| POST   | `/api/account/register` | Creates `{ username, password }`, a session and a one-time recovery code.                 |
-| POST   | `/api/account/login`    | Signs in with `{ username, password }`.                                                   |
-| POST   | `/api/account/recover`  | Resets with `{ username, password, recoveryCode }`; returns a fresh recovery code.        |
-| GET    | `/api/account/session`  | Current user, CSRF token and session expiration; no password hashes or workspace key.     |
-| DELETE | `/api/account/session`  | Revokes the current session and clears its cookie.                                        |
-| GET    | `/api/sync/workspace`   | Current account snapshot, or `{ version: 1, revision: 0, data: null }` for a new account. |
-| PUT    | `/api/sync/workspace`   | Validates and writes `{ version: 1, revision, data }` with optimistic revision checks.    |
+| Method | Route                       | Purpose                                                                                                                              |
+| ------ | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| POST   | `/api/account/register`     | Creates `{ username, password }`, a session and a one-time recovery code.                                                            |
+| POST   | `/api/account/login`        | Signs in with `{ username, password }`.                                                                                              |
+| POST   | `/api/account/recover`      | Resets with `{ username, password, recoveryCode }`; returns a fresh recovery code.                                                   |
+| GET    | `/api/account/session`      | Current user, CSRF token and session expiration; no password hashes or workspace key.                                                |
+| DELETE | `/api/account/session`      | Revokes the current session and clears its cookie.                                                                                   |
+| GET    | `/api/account/sessions`     | Lists active public session IDs, estimated devices, sign-in/last-active/expiry times and current-session flag.                       |
+| DELETE | `/api/account/sessions`     | Revokes every session except the current one.                                                                                        |
+| DELETE | `/api/account/sessions/:id` | Revokes one owned session, including the current session.                                                                            |
+| PUT    | `/api/account/password`     | Verifies `{ currentPassword, newPassword }`, rotates the current session and recovery code, and revokes other sessions.              |
+| PUT    | `/api/account/device`       | Associates `{ workspaceKey }` with the authenticated account for device backup cleanup.                                              |
+| DELETE | `/api/account`              | Verifies `{ currentPassword, confirmation }`, where confirmation is the exact username, and deletes the account and associated data. |
+| GET    | `/api/sync/workspace`       | Current account snapshot, or `{ version: 1, revision: 0, data: null }` for a new account.                                            |
+| PUT    | `/api/sync/workspace`       | Validates and writes `{ version: 1, revision, data }` with optimistic revision checks.                                               |
 
 Sessions use 256-bit opaque cookies with HttpOnly, SameSite=Strict, a 30-day lifetime and only hashed tokens in SQLite. At most ten sessions per account are retained. HTTPS origins automatically receive Secure cookies; `NODE_ENV=production` or `ACCOUNT_SECURE_COOKIES=true` forces them behind a reverse proxy. Account mutations require an allowed Origin; authenticated mutations also require the session’s `X-Mochi-CSRF`. Sync requests require `X-Mochi-Account` matching the session user so a cookie changed in another tab cannot send one account’s plans into another account. A browser backup bearer key grants no account access.
 
 Each account has a private server-side workspace key and uses the same atomic version store and retention limit as backups. Conflicting writes return `409`; they never overwrite a newer head. The client keeps its previous server snapshot in IndexedDB for three-way merging, queues offline edits, and resolves overlapping series edits explicitly. Account payloads normalize selection/edit timestamps and exclude device notification choices. Local caches, device-only plans, backup keys and push choices are isolated by profile. No external identity or email service is required.
+
+Management requests require the matching `X-Mochi-Account` header in addition to the session cookie; mutations also require the CSRF token and allowed Origin. Password changes and deletion verify the current password with the same rate limits as authentication and recheck the session after hashing. Password changes rotate the current cookie/CSRF token and recovery code atomically. Existing sessions migrate without losing valid cookies. Device names store only an estimated browser/platform label, not the raw user agent or IP address; last activity is updated at most once per minute. Session IDs exposed in lists cannot authenticate requests.
+
+Account-associated bearer keys additionally require a live session for their owning account on backup and push routes. Scoped browser requests send `X-Mochi-Account`; requests are checked again after asynchronous body reads. Guest workspace keys continue to work without accounts. Revocation removes the affected sessions’ push subscriptions and queued deliveries, including unassigned legacy links. Password rotation preserves and rebinds the current session’s reminder devices.
+
+Account deletion removes sessions, the private account snapshot/history, associated device snapshots/history, push devices and queued deliveries in one transaction. Only hashes of retired device keys remain as tombstones, without an account ID, so stale clients cannot upload new backups or reminders with deleted keys. Unrelated accounts and guest workspaces remain. The frontend clears the deleted account’s current-device cache only after the server confirms success. Offline copies on other devices and downloaded backups cannot be erased remotely.
 
 Serve the app and API from one HTTPS origin reachable by every device. Configure `ALLOWED_ORIGINS` for that origin, set Secure cookies in production, and persist the SQLite directory. Accounts do not encrypt cached plans on a shared device; sign-out returns to device-only plans but retains the account cache for offline use. Recovery codes cannot be retrieved after the initial response.
 

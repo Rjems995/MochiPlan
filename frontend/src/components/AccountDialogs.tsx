@@ -2,6 +2,7 @@ import { Copy, Download } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
 import { download, downloadJSON } from "../storage";
 import { Modal } from "./Modal";
+import { AccountManagementDialog } from "./AccountManagementDialog";
 
 export function AccountDialogs() {
   const {
@@ -24,6 +25,7 @@ export function AccountDialogs() {
   }
   return (
     <>
+      <AccountManagementDialog />
       {accounts.recoveryCode && (
         <Modal
           title="Keep your recovery code safe"

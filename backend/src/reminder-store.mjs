@@ -19,6 +19,18 @@ export class ReminderStore {
       PRIMARY KEY(owner,device_id,id)
     ); CREATE INDEX IF NOT EXISTS push_due ON push_deliveries(status,next_at);
     CREATE TABLE IF NOT EXISTS account_reminder_devices (account_id TEXT NOT NULL,owner TEXT NOT NULL,device_id TEXT NOT NULL,PRIMARY KEY(owner,device_id));`);
+    db.exec(
+      "CREATE TABLE IF NOT EXISTS account_device_workspaces (owner TEXT PRIMARY KEY,account_id TEXT,deleted INTEGER NOT NULL DEFAULT 0); INSERT OR IGNORE INTO account_device_workspaces(owner,account_id,deleted) SELECT DISTINCT owner,account_id,0 FROM account_reminder_devices",
+    );
+    if (
+      !db
+        .prepare("PRAGMA table_info(account_reminder_devices)")
+        .all()
+        .some((c) => c.name === "session_id")
+    )
+      db.exec(
+        "ALTER TABLE account_reminder_devices ADD COLUMN session_id TEXT",
+      );
   }
   owner(key) {
     return createHash("sha256").update(key).digest("hex");
@@ -149,13 +161,23 @@ export class ReminderStore {
       )
       .get(this.owner(key), id)?.workspace_key;
   }
-  linkAccount(accountId, key, id, data, now) {
+  linkAccount(accountId, key, id, data, now, sessionId = null) {
     const owner = this.owner(key),
       row = this.row(key, id);
     if (!row)
       throw new HttpError(
         404,
         "Sync this reminder device before linking it to your account.",
+      );
+    const binding = this.db
+      .prepare("SELECT * FROM account_device_workspaces WHERE owner=?")
+      .get(owner);
+    if (binding?.deleted)
+      throw new HttpError(410, "This account device was deleted.");
+    if (binding && binding.account_id !== accountId)
+      throw new HttpError(
+        409,
+        "This reminder device belongs to another account.",
       );
     const previous = this.db
       .prepare(
@@ -171,15 +193,77 @@ export class ReminderStore {
     try {
       this.db
         .prepare(
-          "INSERT OR IGNORE INTO account_reminder_devices VALUES (?,?,?)",
+          "INSERT OR IGNORE INTO account_device_workspaces VALUES (?,?,0)",
+        )
+        .run(owner, accountId);
+      this.db
+        .prepare(
+          "INSERT OR IGNORE INTO account_reminder_devices(account_id,owner,device_id) VALUES (?,?,?)",
         )
         .run(accountId, owner, id);
+      if (sessionId)
+        this.db
+          .prepare(
+            "UPDATE account_reminder_devices SET session_id=? WHERE owner=? AND device_id=?",
+          )
+          .run(sessionId, owner, id);
       if (data) this.syncAccount(accountId, data, now);
       this.db.exec("COMMIT");
     } catch (error) {
       this.db.exec("ROLLBACK");
       throw error;
     }
+  }
+  removeAccountDevices(accountId, sessionIds = null) {
+    const rows = this.db
+      .prepare(
+        "SELECT owner,device_id,session_id FROM account_reminder_devices WHERE account_id=?",
+      )
+      .all(accountId);
+    const removed = [];
+    for (const row of rows) {
+      if (sessionIds && row.session_id && !sessionIds.includes(row.session_id))
+        continue;
+      this.db
+        .prepare("DELETE FROM push_deliveries WHERE owner=? AND device_id=?")
+        .run(row.owner, row.device_id);
+      this.db
+        .prepare("DELETE FROM push_devices WHERE owner=? AND device_id=?")
+        .run(row.owner, row.device_id);
+      this.db
+        .prepare(
+          "DELETE FROM account_reminder_devices WHERE owner=? AND device_id=?",
+        )
+        .run(row.owner, row.device_id);
+      removed.push(row.owner);
+    }
+    if (!sessionIds) {
+      // Include devices whose account link was interrupted after registration.
+      for (const table of ["push_deliveries", "push_devices"])
+        this.db
+          .prepare(
+            `DELETE FROM ${table} WHERE owner IN (SELECT owner FROM account_device_workspaces WHERE account_id=?)`,
+          )
+          .run(accountId);
+    }
+    return removed;
+  }
+  rotateAccountSessions(accountId, keepSession, nextSession) {
+    if (keepSession && nextSession)
+      this.db
+        .prepare(
+          "UPDATE account_reminder_devices SET session_id=? WHERE account_id=? AND session_id=?",
+        )
+        .run(nextSession, accountId, keepSession);
+    const rows = this.db
+      .prepare(
+        "SELECT DISTINCT session_id FROM account_reminder_devices WHERE account_id=? AND (session_id IS NULL OR session_id!=?)",
+      )
+      .all(accountId, nextSession || "");
+    this.removeAccountDevices(
+      accountId,
+      rows.map((row) => row.session_id),
+    );
   }
   // Called inside the account workspace transaction so cancellations and reminder jobs commit together.
   syncAccount(accountId, data, now) {

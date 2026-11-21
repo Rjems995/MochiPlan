@@ -60,6 +60,8 @@ Normal editing has no server dependency. Device-only plans are stored in this br
 
 Each account has its own IndexedDB workspace and server baseline. Edits save locally first, survive offline reloads, and sync after reconnection while the app is open. Independent changes merge; overlapping changes offer local/account/keep-both choices. Recurring series merge as atomic groups to preserve scoped edits and links. Remote updates wait while an edit form is open; uploading local-only edits preserves undo history. Before applying incoming data, the prior device workspace is saved in Backup history. Sign-out restores the separate device-only workspace, retains the account cache, and unsubscribes its device push reminders. Session credentials stay in HttpOnly cookies, with CSRF checks and per-account sync headers. Device notification and backup choices do not sync.
 
+**Manage account** opens Devices, Password and Delete account sections. Session revocation requires confirmation and supports one session or every other session. Password changes verify the current password, confirm the new password, rotate the current session/recovery code and sign out other sessions. Deletion offers a backup download and requires both the current password and exact username. After server confirmation, it clears this account’s IndexedDB workspace, sync baseline, safety copy and profile-specific preferences, then returns to the preserved device-only workspace. Other-device offline copies remain. Account-linked backup and reminder requests carry the matching account header and cookie, so revoked sessions cannot reuse saved device keys.
+
 Automatic browser-profile server backups are enabled by default and run after edits settle, at most once a minute while the app is open and the companion backend is available. Failures retry with backoff and on reconnection. Settings shows backup status and the last successful server timestamp, offers manual save/restore, and lets you disable automation for this browser. A conflicting backup head pauses automatic writes until an explicit save or restore resolves it.
 
 Backup history lists the latest 30 server versions with timestamps and workspace counts. Restoring keeps a local safety copy of current plans; server restores also save pending current edits before creating a new head from the chosen version. The local safety copy is available offline in history, including after file imports. Failed restores do not replace local plans. Identical automatic backups and navigation-only changes do not create versions. Automatic-backup settings are device-local and are not changed by restoring a workspace.
@@ -94,7 +96,8 @@ The production dependency audit has no known advisories at the time of verificat
 
 - `src/pages/`: the studio, overview, saved schedules, templates, tasks, and settings.
 - `src/hooks/useWorkspace.ts`: loading, automatic saves, preferences, schedule changes, and undo/redo.
-- `src/hooks/useAccounts.ts`: account sessions, recovery, profile switching and sync lifecycle.
+- `src/hooks/useAccounts.ts`: account sessions, password changes, recovery, revocation, deletion, profile switching and sync lifecycle.
+- `src/components/AccountManagementDialog.tsx`: signed-in devices, password changes and confirmed account deletion.
 - `src/services/workspaceSync.ts`, `syncMerge.ts` and `accountApi.ts`: offline synchronization, three-way merging, conflict decisions and authenticated API calls.
 - `src/services/deviceScope.ts`: profile-specific storage names and browser backup/reminder keys.
 - `src/hooks/useScheduleEditor.ts`: calendar navigation, activities, cancellations, drag/resize, and canvas measurements.

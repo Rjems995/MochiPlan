@@ -157,6 +157,7 @@ export function createApp({
         );
         if (!match) throw new HttpError(401, "A workspace key is required.");
         const key = match[1];
+        accounts.authorizeDevice(req, key);
         if (pushRoute) {
           const deviceId = pushRoute[1];
           if (!validDeviceId(deviceId))
@@ -185,6 +186,7 @@ export function createApp({
                 "Background reminders are not configured on this server yet.",
               );
             const body = await readJson(req, maxBodyBytes);
+            accounts.authorizeDevice(req, key);
             const subscription = validateSubscription(body?.subscription);
             const linkedKey = reminderStore.linkedKey(key, deviceId),
               shared = linkedKey && store.get(linkedKey)?.data;
@@ -244,6 +246,7 @@ export function createApp({
         }
         if (req.method === "PUT") {
           const body = await readJson(req, maxBodyBytes);
+          accounts.authorizeDevice(req, key);
           const data = validateWorkspace(body);
           sendJson(
             res,

@@ -80,6 +80,7 @@ function WorkspaceApplication({
   }, [
     accounts.linkReminders,
     accounts.signedIn,
+    accounts.sessionId,
     workspace.profileId,
     reminders.enabled,
     reminders.phase,

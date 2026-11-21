@@ -56,12 +56,13 @@ async function scopedRequest(
       method: body ? "PUT" : "GET",
       headers: {
         Authorization: `Bearer ${workspaceKey(profile)}`,
+        ...(profile ? { "X-Mochi-Account": profile } : {}),
         ...(body ? { "Content-Type": "application/json" } : {}),
       },
       body: body ? JSON.stringify(body) : undefined,
       signal: controller.signal,
       cache: "no-store",
-      credentials: "omit",
+      credentials: profile ? "same-origin" : "omit",
       redirect: "error",
     });
     const result = await response.json().catch(() => null);

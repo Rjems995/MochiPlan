@@ -94,6 +94,14 @@ export function AccountSettings() {
             <p className="account-notice">{accounts.sync.error}</p>
           )}
           <div className="account-actions">
+            <button
+              className="button secondary"
+              disabled={disabled || !accounts.online}
+              onClick={() => accounts.setManagementOpen(true)}
+            >
+              <UserRound size={16} />
+              Manage account
+            </button>
             {accounts.sync.conflict ? (
               <button
                 className="button primary"

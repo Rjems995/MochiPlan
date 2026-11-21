@@ -22,6 +22,7 @@ import {
   saveData,
   saveRestorePoint,
   saveSyncCheckpoint,
+  forgetAccountProfile,
 } from "../storage";
 import { deviceKey } from "../services/deviceScope";
 import { workspaceKey } from "../services/serverBackup";
@@ -48,6 +49,8 @@ export function useAccounts(
 ) {
   const [api] = useState(createAccountApi);
   const [user, setUser] = useState<AccountUser | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [managementOpen, setManagementOpen] = useState(false);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
   const [reminderError, setReminderError] = useState("");
@@ -83,6 +86,7 @@ export function useAccounts(
         }
         if (alive) {
           setUser(current.user);
+          setSessionId(current.sessionId);
           localStorage.setItem(
             userKey(current.user.id),
             JSON.stringify(current.user),
@@ -129,6 +133,14 @@ export function useAccounts(
     const syncEnabled =
       localStorage.getItem(deviceKey("mochiplan-sync-enabled", id)) !== "off";
     setEnabled(syncEnabled);
+    void api.registerDevice(workspaceKey(id)).catch((failure) => {
+      if (!cancelled)
+        setError(
+          failure instanceof Error
+            ? failure.message
+            : "This account device could not be registered.",
+        );
+    });
     db.sync
       .get(id)
       .then((checkpoint) => {
@@ -149,13 +161,14 @@ export function useAccounts(
         setEngine(active);
         active.start();
       })
-      .catch((failure) =>
-        setError(
-          failure instanceof Error
-            ? failure.message
-            : "Sync history could not be read.",
-        ),
-      );
+      .catch((failure) => {
+        if (!cancelled)
+          setError(
+            failure instanceof Error
+              ? failure.message
+              : "Sync history could not be read.",
+          );
+      });
     return () => {
       cancelled = true;
       active?.stop();
@@ -209,6 +222,8 @@ export function useAccounts(
         remote.data || previous,
       );
       setUser(session.user);
+      setSessionId(session.sessionId);
+      setManagementOpen(false);
       setEpoch((value) => value + 1);
       setRecoveryCode(session.recoveryCode || "");
       notify(
@@ -246,6 +261,8 @@ export function useAccounts(
       }
       await workspace.switchProfile(null);
       setUser(null);
+      setSessionId(null);
+      setManagementOpen(false);
       setRecoveryCode("");
       setConflictOpen(false);
       notify(
@@ -270,6 +287,75 @@ export function useAccounts(
     setEnabled(value);
     engine?.setEnabled(value);
   }
+  async function changePassword(currentPassword: string, nextPassword: string) {
+    if (busy) return false;
+    setBusy(true);
+    setError("");
+    engineRef.current?.stop();
+    try {
+      const session = await api.changePassword(currentPassword, nextPassword);
+      setUser(session.user);
+      setSessionId(session.sessionId);
+      setManagementOpen(false);
+      setEpoch((value) => value + 1);
+      setRecoveryCode(session.recoveryCode || "");
+      notify(
+        "Password changed. Other sessions are signed out. Save your new recovery code.",
+      );
+      return true;
+    } catch (failure) {
+      engineRef.current?.start();
+      throw failure;
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function revokeSession(id: string | "others") {
+    const result = await api.revokeSession(id);
+    if (result.signedOut) await signOut();
+    else
+      notify(
+        id === "others"
+          ? "Other sessions have been signed out."
+          : "That session has been signed out.",
+      );
+    return result;
+  }
+  async function deleteAccount(currentPassword: string, confirmation: string) {
+    if (busy || !workspace.profileId) return false;
+    const id = workspace.profileId;
+    setBusy(true);
+    setError("");
+    engineRef.current?.stop();
+    let deleted = false;
+    try {
+      await api.deleteAccount(currentPassword, confirmation);
+      deleted = true;
+      try {
+        const registration = await navigator.serviceWorker?.getRegistration();
+        const subscription = await registration?.pushManager?.getSubscription();
+        await subscription?.unsubscribe();
+      } catch {}
+      await workspace.switchProfile(null, undefined, { discardCurrent: true });
+      await forgetAccountProfile(id);
+      setUser(null);
+      setSessionId(null);
+      setManagementOpen(false);
+      setRecoveryCode("");
+      setConflictOpen(false);
+      notify("Account deleted. Device-only plans are unchanged.");
+      return true;
+    } catch (failure) {
+      if (!deleted) engineRef.current?.start();
+      else
+        setError(
+          "The server account was deleted, but local cleanup needs attention. Clear this site’s saved account data after downloading any plans you want to keep.",
+        );
+      throw failure;
+    } finally {
+      setBusy(false);
+    }
+  }
   async function resolveConflict(choice: SyncChoice) {
     await engine?.syncNow(choice);
     if (!engine?.getSnapshot().conflict) setConflictOpen(false);
@@ -290,6 +376,13 @@ export function useAccounts(
     enabled,
     sync,
     recoveryCode,
+    sessionId,
+    managementOpen,
+    setManagementOpen,
+    changePassword,
+    revokeSession,
+    deleteAccount,
+    listSessions: () => api.sessions(),
     setRecoveryCode,
     conflictOpen,
     setConflictOpen,

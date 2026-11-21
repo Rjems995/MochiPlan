@@ -39,10 +39,13 @@ async function scopedRequest(
           ? { Authorization: `Bearer ${workspaceKey(profile)}` }
           : {}),
         ...(body ? { "Content-Type": "application/json" } : {}),
+        ...(profile && path !== "/config"
+          ? { "X-Mochi-Account": profile }
+          : {}),
       },
       body: body ? JSON.stringify(body) : undefined,
       cache: "no-store",
-      credentials: "omit",
+      credentials: profile ? "same-origin" : "omit",
       redirect: "error",
       signal: controller.signal,
     });
