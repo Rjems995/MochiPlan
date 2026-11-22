@@ -152,7 +152,7 @@ test("theme, stickers, template favorites and tasks work", async ({ page }) => {
       .filter({ hasText: "Prepare presentation" }),
   ).toHaveCount(1);
 });
-test("exports PNG, JPG and PDF at the requested dimensions", async ({
+test("exports PNG, JPG and PDF tightly cropped to the planner proportions", async ({
   page,
 }) => {
   await page.goto("/");
@@ -181,6 +181,12 @@ test("exports PNG, JPG and PDF at the requested dimensions", async ({
     const file = await download;
     expect(file.suggestedFilename()).toMatch(new RegExp(`\\.${ext}$`));
     expect(await file.failure()).toBeNull();
+    if (ext === "png") {
+      await file.saveAs(".sites-runtime/planner-export.png");
+      await page.screenshot({
+        path: ".sites-runtime/planner-export-preview.png",
+      });
+    }
   }
   const dimensions = await modal
     .getByAltText("Exact preview of your exported planner")
@@ -188,7 +194,16 @@ test("exports PNG, JPG and PDF at the requested dimensions", async ({
       w: img.naturalWidth,
       h: img.naturalHeight,
     }));
-  expect(dimensions).toEqual({ w: 1920, h: 1080 });
+  const source = await modal
+    .locator(".export-render .schedule-paper")
+    .evaluate((paper: HTMLElement) => ({
+      w: paper.offsetWidth,
+      h: paper.offsetHeight,
+    }));
+  expect(dimensions.w).toBe(1920);
+  expect(
+    Math.abs(dimensions.h - (dimensions.w * source.h) / source.w),
+  ).toBeLessThanOrEqual(1);
 });
 test("offline cold launch, editing and exports work after service worker caches", async ({
   page,

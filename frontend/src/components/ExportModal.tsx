@@ -1,16 +1,20 @@
 import { useEffect, useState, useRef } from "react";
-import { Download, LoaderCircle, Printer, Image, Check } from "lucide-react";
+import { Download, LoaderCircle, Printer, Check } from "lucide-react";
 import { Modal } from "./Modal";
 import { ScheduleCanvas } from "./ScheduleCanvas";
 import type { Schedule, Preferences, View } from "../model";
 import { download } from "../storage";
+import {
+  exportHourHeight,
+  exportLayoutWidth,
+  plannerImageSize,
+} from "../services/plannerExport";
 const sizes = [
-  { name: "Desktop wallpaper", w: 1920, h: 1080 },
-  { name: "Phone wallpaper", w: 1080, h: 1920 },
-  { name: "Square", w: 1080, h: 1080 },
-  { name: "A4 landscape", w: 3508, h: 2480 },
-  { name: "A4 portrait", w: 2480, h: 3508 },
-  { name: "Custom size", w: 1600, h: 1000 },
+  { name: "Desktop · 1920 px wide", w: 1920 },
+  { name: "Tablet · 1536 px wide", w: 1536 },
+  { name: "Mobile · 1080 px wide", w: 1080 },
+  { name: "Print · 3508 px wide", w: 3508 },
+  { name: "Custom width", w: 1600 },
 ];
 export function ExportModal({
   schedule,
@@ -18,8 +22,6 @@ export function ExportModal({
   week,
   view,
   day,
-  canvasWidth,
-  hourHeight,
   onClose,
   notify,
 }: {
@@ -28,16 +30,14 @@ export function ExportModal({
   week: Date;
   view: View;
   day: number;
-  canvasWidth: number;
-  hourHeight: number;
   onClose: () => void;
   notify: (text: string) => void;
 }) {
   const [size, setSize] = useState(0);
   const [width, setWidth] = useState(1920);
-  const [height, setHeight] = useState(1080);
   const [format, setFormat] = useState("png");
   const [preview, setPreview] = useState("");
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [ready, setReady] = useState(false);
@@ -53,9 +53,19 @@ export function ExportModal({
         if (!content.current) return;
         const { toCanvas } = await import("html-to-image");
         await document.fonts.ready;
-        const source = content.current;
+        const source =
+          content.current?.querySelector<HTMLElement>(".schedule-paper");
+        if (!source || cancelled) return;
+        const outputSize = plannerImageSize(
+          source.offsetWidth,
+          source.offsetHeight,
+          width,
+        );
         const canvas = await toCanvas(source, {
-          pixelRatio: Math.min(2, width / Math.max(source.offsetWidth, 1)),
+          canvasWidth: outputSize.width,
+          canvasHeight: outputSize.height,
+          pixelRatio: 1,
+          backgroundColor: schedule.design.background,
           cacheBust: false,
           skipAutoScale: true,
           filter: (node) =>
@@ -65,26 +75,9 @@ export function ExportModal({
             ),
         });
         if (cancelled || current !== generation.current) return;
-        const output = document.createElement("canvas");
-        output.width = width;
-        output.height = height;
-        const ctx = output.getContext("2d")!;
-        ctx.fillStyle = schedule.design.background;
-        ctx.fillRect(0, 0, width, height);
-        const padding = Math.min(width, height) * 0.045;
-        const scale = Math.min(
-          (width - padding * 2) / canvas.width,
-          (height - padding * 2) / canvas.height,
-        );
-        ctx.drawImage(
-          canvas,
-          (width - canvas.width * scale) / 2,
-          (height - canvas.height * scale) / 2,
-          canvas.width * scale,
-          canvas.height * scale,
-        );
+        setDimensions(outputSize);
         setPreview(
-          output.toDataURL(format === "jpg" ? "image/jpeg" : "image/png", 0.97),
+          canvas.toDataURL(format === "jpg" ? "image/jpeg" : "image/png", 0.97),
         );
         setReady(true);
       } catch (e) {
@@ -98,7 +91,7 @@ export function ExportModal({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [width, height, format, schedule, week, view, day, preferences]);
+  }, [width, format, schedule, week, view, day, preferences]);
   async function exportFile() {
     if (!preview || !ready) return;
     setBusy(true);
@@ -107,12 +100,13 @@ export function ExportModal({
       if (format === "pdf") {
         const { jsPDF } = await import("jspdf");
         const pdf = new jsPDF({
-          orientation: width > height ? "landscape" : "portrait",
+          orientation:
+            dimensions.width > dimensions.height ? "landscape" : "portrait",
           unit: "px",
-          format: [width, height],
+          format: [dimensions.width, dimensions.height],
           hotfixes: ["px_scaling"],
         });
-        pdf.addImage(preview, "PNG", 0, 0, width, height);
+        pdf.addImage(preview, "PNG", 0, 0, dimensions.width, dimensions.height);
         pdf.save(`${filename}.pdf`);
       } else download(preview, `${filename}.${format}`);
       notify("A lovely little plan, ready to keep.");
@@ -125,15 +119,12 @@ export function ExportModal({
   return (
     <Modal
       title="Take a little lovely with you"
-      subtitle="Your planner, just as you made it."
+      subtitle="Just your designed planner, without the extra frame."
       onClose={onClose}
       wide
     >
       <div className="export-layout">
-        <div
-          className="export-preview"
-          style={{ background: schedule.design.background }}
-        >
+        <div className="export-preview">
           {ready && preview ? (
             <img src={preview} alt="Exact preview of your exported planner" />
           ) : (
@@ -142,20 +133,17 @@ export function ExportModal({
               <span>Making it picture perfect…</span>
             </div>
           )}
-          <span className="preview-label">
-            {width} × {height} px
-          </span>
         </div>
         <div className="export-options">
           <label className="field-label">
-            Make it a
+            Image size
             <select
               value={size}
               onChange={(ev) => {
                 const i = Number(ev.target.value);
                 setSize(i);
+                if (sizes[i].w !== width) setReady(false);
                 setWidth(sizes[i].w);
-                setHeight(sizes[i].h);
               }}
             >
               {sizes.map((s, i) => (
@@ -165,54 +153,44 @@ export function ExportModal({
               ))}
             </select>
           </label>
-          {size === 5 && (
-            <div className="two-fields">
-              <label className="field-label">
-                Width
-                <input
-                  aria-label="Export width"
-                  type="number"
-                  min="320"
-                  max="4096"
-                  value={width}
-                  onChange={(ev) =>
-                    setWidth(
-                      Math.max(
-                        320,
-                        Math.min(4096, Number(ev.target.value) || 320),
-                      ),
-                    )
-                  }
-                />
-              </label>
-              <label className="field-label">
-                Height
-                <input
-                  aria-label="Export height"
-                  type="number"
-                  min="320"
-                  max="4096"
-                  value={height}
-                  onChange={(ev) =>
-                    setHeight(
-                      Math.max(
-                        320,
-                        Math.min(4096, Number(ev.target.value) || 320),
-                      ),
-                    )
-                  }
-                />
-              </label>
-            </div>
+          {size === sizes.length - 1 && (
+            <label className="field-label">
+              Width
+              <input
+                aria-label="Export width"
+                type="number"
+                min="320"
+                max="4096"
+                value={width}
+                onChange={(ev) =>
+                  setWidth(
+                    Math.max(
+                      320,
+                      Math.min(4096, Number(ev.target.value) || 320),
+                    ),
+                  )
+                }
+              />
+            </label>
           )}
+          <p className="export-dimensions" aria-live="polite">
+            {ready
+              ? `${dimensions.width} × ${dimensions.height} px`
+              : "Preparing your image…"}
+            <span>Height follows your planner’s proportions.</span>
+          </p>
           <fieldset className="field-label">
             <legend>File format</legend>
             <div className="format-picker">
               {["png", "jpg", "pdf"].map((f) => (
                 <button
                   key={f}
-                  onClick={() => setFormat(f)}
+                  onClick={() => {
+                    if (f !== format) setReady(false);
+                    setFormat(f);
+                  }}
                   className={format === f ? "selected" : ""}
+                  aria-pressed={format === f}
                 >
                   {f.toUpperCase()}
                 </button>
@@ -224,7 +202,7 @@ export function ExportModal({
             Fonts, colors & stickers included
             <br />
             <Check size={15} />
-            High resolution, made on your device
+            No added borders or empty margins
             <br />
             <Check size={15} />
             Works offline, too
@@ -256,9 +234,9 @@ export function ExportModal({
         </div>
       </div>
       <div className="export-render" aria-hidden="true">
-        <div ref={content} style={{ width: canvasWidth }}>
+        <div ref={content} style={{ width: exportLayoutWidth(view) }}>
           <ScheduleCanvas
-            hourHeight={hourHeight}
+            hourHeight={exportHourHeight}
             schedule={schedule}
             preferences={preferences}
             week={week}

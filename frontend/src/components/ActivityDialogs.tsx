@@ -25,8 +25,6 @@ export function ActivityDialogs() {
       deleteActivity,
       exportOpen,
       day,
-      canvasRef,
-      canvasHourHeight,
       setExportOpen,
       pendingEdit,
     },
@@ -93,8 +91,6 @@ export function ActivityDialogs() {
           week={week}
           view={view}
           day={day}
-          canvasWidth={canvasRef.current?.offsetWidth || 900}
-          hourHeight={canvasHourHeight}
           onClose={() => setExportOpen(false)}
           notify={notify}
         />

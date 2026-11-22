@@ -24,6 +24,7 @@ import "./accounts.css";
 import "./sharing.css";
 import "./tasks.css";
 import "./sync-review.css";
+import "./export.css";
 registerSW({
   immediate: true,
   onRegisteredSW(_url, registration) {

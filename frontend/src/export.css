@@ -1,0 +1,122 @@
+.export-render .schedule-paper {
+  border: 0 !important;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 16px 18px 0;
+  min-height: 0;
+}
+.export-render .view-list.schedule-paper {
+  padding: 16px 18px 0;
+}
+.export-render .schedule-list {
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.export-render .view-list .paper-heading h2 {
+  font-size: 26px;
+}
+.export-render .view-list .paper-flower {
+  width: 52px;
+  height: 62px;
+  top: -8px;
+  right: 7px;
+}
+.export-render .list-activity strong {
+  font-size: 14px;
+}
+.export-render .list-activity small {
+  font-size: 12px;
+}
+.export-render .list-time {
+  font-size: 12px;
+}
+.export-render .month-cell > button {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.modal:has(.export-layout) .modal-heading .eyebrow {
+  display: none;
+}
+.modal:has(.export-layout) .modal-heading p {
+  font-size: 16px;
+  line-height: 1.6;
+}
+.export-layout {
+  align-items: start;
+  grid-template-columns: minmax(0, 1fr) 240px;
+}
+.export-preview {
+  min-height: 0;
+  max-height: 460px;
+  background: var(--page);
+  padding: 0;
+  border-radius: 0;
+  border: 0;
+  overflow: auto;
+}
+.export-preview > img {
+  width: 100%;
+  max-height: none;
+  height: auto;
+  flex-shrink: 0;
+}
+.loading-preview {
+  min-height: 240px;
+  padding: 24px;
+  font-size: 16px;
+}
+.export-options .field-label,
+.export-options .field-label > select,
+.export-options .field-label > input,
+.export-options .button,
+.export-options .format-picker > button {
+  font-size: 14px;
+}
+.export-options fieldset {
+  min-inline-size: 0;
+}
+.export-dimensions {
+  font-size: 14px;
+  margin: 12px 0 20px;
+}
+.export-dimensions > span {
+  display: block;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+  margin-top: 5px;
+}
+.export-options .export-note {
+  font-size: 13px;
+  line-height: 2;
+}
+.export-options .export-note svg {
+  display: inline-block;
+  color: var(--pink);
+}
+.export-options .button {
+  min-height: 44px;
+}
+@media (max-width: 700px) {
+  .export-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+  .export-preview {
+    max-height: 340px;
+  }
+  .export-preview > img {
+    max-height: none;
+  }
+  .export-options {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .export-options > .field-label,
+  .export-options > .export-dimensions,
+  .export-options > .export-note,
+  .export-options > .button {
+    margin: 0;
+  }
+}
