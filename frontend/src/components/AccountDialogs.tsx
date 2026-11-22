@@ -1,16 +1,15 @@
 import { Copy, Download } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
-import { download, downloadJSON } from "../storage";
+import { download } from "../storage";
 import { Modal } from "./Modal";
 import { AccountManagementDialog } from "./AccountManagementDialog";
+import { SyncConflictDialog } from "./SyncConflictDialog";
 
 export function AccountDialogs() {
   const {
     accounts,
-    data,
     feedback: { notify },
   } = useAppContext();
-  const conflict = accounts.sync.conflict;
   function saveCode() {
     const url = URL.createObjectURL(
       new Blob(
@@ -26,6 +25,7 @@ export function AccountDialogs() {
   return (
     <>
       <AccountManagementDialog />
+      <SyncConflictDialog />
       {accounts.recoveryCode && (
         <Modal
           title="Keep your recovery code safe"
@@ -63,68 +63,6 @@ export function AccountDialogs() {
               onClick={() => accounts.setRecoveryCode("")}
             >
               I’ve saved my code
-            </button>
-          </div>
-        </Modal>
-      )}
-      {accounts.conflictOpen && conflict && (
-        <Modal
-          title="Bring your changes together"
-          subtitle="Both devices changed the same plans. Choose which version to use, or keep both as separate planners and tasks."
-          onClose={() => {
-            if (!accounts.sync.busy) accounts.setConflictOpen(false);
-          }}
-        >
-          <div className="account-conflict-counts">
-            <div>
-              <strong>This device</strong>
-              <span>
-                {data.schedules.length} planners · {data.tasks.length} tasks
-              </span>
-            </div>
-            <div>
-              <strong>Your account</strong>
-              <span>
-                {conflict.remote.data?.schedules.length || 0} planners ·{" "}
-                {conflict.remote.data?.tasks.length || 0} tasks
-              </span>
-            </div>
-          </div>
-          <p className="account-hint">
-            A safety copy is saved on this device before changes are applied.
-            Keeping both retains differing planners and tasks separately and
-            uses this device’s preferences.
-          </p>
-          {accounts.sync.error && (
-            <p className="account-notice" role="alert">
-              {accounts.sync.error}
-            </p>
-          )}
-          <div className="account-conflict-actions">
-            <button
-              className="button primary"
-              disabled={accounts.sync.busy}
-              onClick={() => accounts.resolveConflict("both")}
-            >
-              Keep both sets of plans
-            </button>
-            <button
-              className="button secondary"
-              disabled={accounts.sync.busy}
-              onClick={() => accounts.resolveConflict("local")}
-            >
-              Use this device’s version
-            </button>
-            <button
-              className="button secondary"
-              disabled={accounts.sync.busy}
-              onClick={() => accounts.resolveConflict("account")}
-            >
-              Use account version
-            </button>
-            <button className="text-button" onClick={() => downloadJSON(data)}>
-              <Download size={16} />
-              Download this device’s backup
             </button>
           </div>
         </Modal>

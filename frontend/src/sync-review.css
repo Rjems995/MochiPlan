@@ -1,0 +1,331 @@
+.sync-review {
+  font-size: 16px;
+  line-height: 1.6;
+}
+.modal:has(.sync-review) {
+  padding: 28px;
+}
+.modal:has(.sync-review) .modal-heading .eyebrow {
+  display: none;
+}
+.modal:has(.sync-review) .modal-heading p {
+  font-size: 16px;
+  color: var(--muted);
+  line-height: 1.65;
+}
+.sync-review-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  background: var(--page);
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  margin-bottom: 18px;
+}
+.sync-review-summary > svg {
+  color: var(--pink);
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.sync-review-summary strong {
+  font-size: 18px;
+}
+.sync-review-summary p {
+  color: var(--muted);
+  margin: 7px 0 0;
+  font-size: 16px;
+}
+.sync-review-notice {
+  border-left: 3px solid var(--accent);
+  background: var(--page);
+  padding: 13px 16px;
+  font-size: 16px;
+  margin: 18px 0;
+  line-height: 1.65;
+}
+.sync-review-bulk,
+.sync-review-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 18px 0;
+}
+.sync-review .button,
+.sync-review .text-button {
+  font-size: 14px;
+}
+.sync-review-description {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.7;
+  margin: 12px 0 18px;
+}
+.sync-conflict-list {
+  display: grid;
+  gap: 24px;
+}
+.sync-conflict-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px;
+}
+.sync-conflict-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+.sync-conflict-heading > div {
+  min-width: 0;
+}
+.sync-conflict-heading > div > span {
+  font-size: 13px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.sync-conflict-heading h3 {
+  font-size: 21px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  margin: 6px 0 0;
+  font-family: Nunito, sans-serif;
+  font-weight: 700;
+}
+.sync-choice-saved {
+  color: var(--pink);
+  background: var(--pink-light);
+  border-radius: 20px;
+  padding: 4px 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.sync-review-field {
+  margin: 14px 0;
+}
+.sync-review-field h5 {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 9px;
+}
+.sync-conflict-marker {
+  font-size: 13px;
+  color: var(--pink);
+  font-weight: 400;
+}
+.sync-compare-columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+.sync-compare-columns > div {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  min-width: 0;
+  background: var(--surface);
+}
+.sync-compare-columns > .has-change {
+  background: var(--pink-light);
+}
+.sync-column-label {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.sync-review-value {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  line-height: 1.6;
+  max-height: 180px;
+  overflow: auto;
+}
+.sync-review-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1px solid var(--muted);
+  vertical-align: middle;
+  margin-right: 7px;
+}
+.sync-review-image {
+  width: 100%;
+  max-height: 130px;
+  object-fit: contain;
+  border-radius: 5px;
+}
+.sync-record + .sync-record {
+  border-top: 1px dashed var(--line);
+  padding-top: 16px;
+  margin-top: 20px;
+}
+.sync-record h4 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 12px;
+}
+.sync-record h4 span {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 400;
+}
+.sync-resolution-options {
+  min-inline-size: 0;
+  margin: 22px 0 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+.sync-resolution-options legend {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.sync-resolution-options label {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  cursor: pointer;
+  min-width: 0;
+}
+.sync-resolution-options label.selected {
+  border-color: var(--accent);
+  background: var(--pink-light);
+}
+.sync-resolution-options input {
+  accent-color: var(--pink);
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.sync-resolution-options strong {
+  display: block;
+  font-size: 14px;
+}
+.sync-resolution-options small {
+  display: block;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin-top: 5px;
+}
+.sync-review-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.sync-review-pagination > span {
+  font-size: 13px;
+  color: var(--muted);
+}
+.sync-other-changes {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 24px;
+}
+.sync-other-changes > summary {
+  font-size: 16px;
+  cursor: pointer;
+  font-weight: 500;
+}
+.sync-automatic-item {
+  border-top: 1px solid var(--line);
+  padding: 14px 0;
+}
+.sync-automatic-item summary {
+  font-size: 16px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.sync-automatic-item summary span {
+  font-size: 13px;
+  color: var(--muted);
+  display: block;
+  margin-left: 18px;
+}
+.sync-review-preview {
+  background: var(--page);
+  border-radius: 9px;
+  padding: 12px 14px;
+  font-size: 14px;
+  margin-top: 20px;
+}
+.sync-review-tools {
+  justify-content: space-between;
+  margin-top: 20px;
+}
+.sync-review-footer {
+  position: sticky;
+  bottom: -28px;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  padding: 17px 28px 24px;
+  margin: 22px -28px -28px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  z-index: 2;
+  border-radius: 0 0 14px 14px;
+}
+.sync-review-footer > span {
+  width: 100%;
+  color: var(--muted);
+  font-size: 13px;
+}
+@media (max-width: 600px) {
+  .modal:has(.sync-review) {
+    padding: 20px;
+  }
+  .sync-conflict-card {
+    padding: 14px;
+  }
+  .sync-conflict-heading h3 {
+    font-size: 19px;
+  }
+  .sync-compare-columns,
+  .sync-resolution-options {
+    grid-template-columns: 1fr;
+  }
+  .sync-resolution-options label {
+    align-items: center;
+  }
+  .sync-review-bulk .button {
+    width: 100%;
+    justify-content: center;
+  }
+  .sync-review-footer {
+    bottom: -20px;
+    margin-left: -20px;
+    margin-right: -20px;
+    margin-bottom: -20px;
+    padding: 14px 20px 20px;
+  }
+  .sync-review-footer .button {
+    flex: 1;
+    justify-content: center;
+  }
+}

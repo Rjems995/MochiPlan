@@ -1,24 +1,26 @@
 import type { AppData } from "../model";
 import type { SyncCheckpoint } from "../storage";
-import { validateBackup } from "../storage.ts";
 import {
   AccountError,
   type AccountApi,
   type SyncSnapshot,
 } from "./accountApi.ts";
+import { onThisDevice, same, sharedWorkspace } from "./syncMerge.ts";
 import {
-  keepBothWorkspaces,
-  mergeWorkspace,
-  onThisDevice,
-  same,
-  sharedWorkspace,
-} from "./syncMerge.ts";
+  canKeepBoth,
+  createWorkspaceReview,
+  resolveWorkspaceReview,
+  validateReviewedWorkspace,
+} from "./syncReview.ts";
+import type { ConflictSelections, WorkspaceReview } from "./syncTypes";
 
 export type SyncChoice = "local" | "account" | "both";
+type SyncAction = SyncChoice | ConflictSelections | { refresh: true };
 export type SyncConflict = {
   remote: SyncSnapshot;
   local: AppData;
   count: number;
+  review: WorkspaceReview;
 };
 export type SyncState = {
   status:
@@ -137,7 +139,7 @@ export class WorkspaceSync {
     if (this.dirty) this.publish({ status: "pending" });
     this.timer = setTimeout(() => void this.syncNow(), delay);
   }
-  async syncNow(choice?: SyncChoice) {
+  async syncNow(choice?: SyncAction) {
     if (this.operation) return this.operation;
     if (
       !this.running ||
@@ -183,13 +185,22 @@ export class WorkspaceSync {
   }
   private conflict(
     remote: SyncSnapshot,
-    count = 1,
     error = "Some changes overlap. Choose how to combine your plans.",
   ) {
     if (!this.data) return;
+    const review = createWorkspaceReview(
+      this.base?.data || null,
+      this.data,
+      remote.data || this.data,
+    );
     this.publish({
       status: "conflict",
-      conflict: { remote, local: this.data, count },
+      conflict: {
+        remote,
+        local: this.data,
+        count: review.items.length,
+        review,
+      },
       error,
     });
   }
@@ -203,7 +214,7 @@ export class WorkspaceSync {
     await this.options.commit(checkpoint, local);
     this.base = checkpoint;
   }
-  private async perform(choice?: SyncChoice) {
+  private async perform(choice?: SyncAction) {
     const remote = await this.options.api.read();
     if (
       !this.running ||
@@ -213,48 +224,85 @@ export class WorkspaceSync {
     )
       return;
     const current = this.data;
+    if (typeof choice === "object" && "refresh" in choice) {
+      const previous = this.state.conflict;
+      if (
+        previous &&
+        remote.revision === previous.remote.revision &&
+        same(sharedWorkspace(current), sharedWorkspace(previous.local)) &&
+        same(remote.data, previous.remote.data)
+      ) {
+        this.publish({ status: "conflict", error: "" });
+        return;
+      }
+      this.conflict(
+        remote,
+        "The comparison is up to date. Review each remaining conflict.",
+      );
+      return;
+    }
     if (
       choice &&
       this.state.conflict &&
-      remote.revision !== this.state.conflict.remote.revision
+      (remote.revision !== this.state.conflict.remote.revision ||
+        !same(
+          sharedWorkspace(current),
+          sharedWorkspace(this.state.conflict.local),
+        ) ||
+        (typeof choice === "object" &&
+          choice.reviewId !== this.state.conflict.review.id))
     ) {
       this.conflict(
         remote,
-        1,
-        "The account changed again while you were reviewing. Review the newest version before choosing.",
+        "Your plans changed while you were reviewing. The comparison has been refreshed; choose again before applying.",
       );
       return;
     }
     let next = current;
     if (remote.data) {
-      if (choice)
-        next =
-          choice === "account"
-            ? onThisDevice(remote.data, current)
-            : choice === "both"
-              ? keepBothWorkspaces(current, remote.data)
-              : current;
-      else if (same(sharedWorkspace(current), sharedWorkspace(remote.data)))
+      if (choice) {
+        const review = this.state.conflict?.review;
+        if (!review)
+          throw Error(
+            "Open a current conflict comparison before applying choices.",
+          );
+        const selections =
+          typeof choice === "string"
+            ? Object.fromEntries(
+                review.items.map((item) => [
+                  item.id,
+                  choice === "both" && !canKeepBoth(item) ? "local" : choice,
+                ]),
+              )
+            : choice.choices;
+        next = onThisDevice(
+          resolveWorkspaceReview(review, selections),
+          current,
+        );
+      } else if (same(sharedWorkspace(current), sharedWorkspace(remote.data)))
         next = current;
       else if (!this.base?.data) {
         this.conflict(remote);
         return;
       } else {
-        const merged = mergeWorkspace(this.base.data, current, remote.data);
-        if (merged.conflicts.length) {
-          this.conflict(remote, merged.conflicts.length);
+        const merged = createWorkspaceReview(
+          this.base.data,
+          current,
+          remote.data,
+        );
+        if (merged.items.length) {
+          this.conflict(remote);
           return;
         }
-        next = merged.data;
+        next = merged.merged;
       }
     }
     try {
-      validateBackup({ version: 1, data: next });
+      validateReviewedWorkspace(next);
     } catch {
       this.conflict(
         remote,
-        1,
-        "These changes need review to keep the calendar valid. Choose which workspace to keep, or keep both sets of plans.",
+        "These changes need review to keep your calendar valid. Review the affected items before applying.",
       );
       return;
     }
@@ -262,6 +310,11 @@ export class WorkspaceSync {
       await this.options.safety(current);
       if (!this.running || this.data !== current || (!choice && this.paused)) {
         this.dirty = true;
+        if (choice && this.running && this.data !== current)
+          this.conflict(
+            remote,
+            "This device changed while saving the safety copy. Review the updated comparison.",
+          );
         return;
       }
       if (!this.options.apply(current, next)) {
@@ -273,7 +326,6 @@ export class WorkspaceSync {
       await this.checkpoint(remote, next);
     } else await this.checkpoint(remote);
     if (!this.running || !this.enabled || !this.data) return;
-    this.publish({ conflict: null });
     // Edits made during a request descend from the merged local workspace and remain queued.
     const upload = this.data,
       shared = sharedWorkspace(upload);
@@ -289,7 +341,6 @@ export class WorkspaceSync {
           if (choice)
             this.conflict(
               await this.options.api.read(),
-              1,
               "The account changed again. Your plans are safe; review the latest version.",
             );
           else this.dirty = true;
@@ -303,6 +354,7 @@ export class WorkspaceSync {
       status: this.data === upload ? "synced" : "pending",
       error: "",
       lastSyncedAt: this.base?.syncedAt || null,
+      conflict: null,
     });
   }
 }

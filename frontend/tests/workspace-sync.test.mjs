@@ -114,6 +114,7 @@ function harness(t, options = {}) {
     saveLocal: async () => {},
     safety: async (data) => {
       safety.push(structuredClone(data));
+      await options.beforeSafety?.();
     },
     apply: (expected, data) => {
       if (expected !== current) return false;
@@ -211,7 +212,7 @@ test("compare-and-swap retries merge a newer server edit instead of overwriting 
   assert.equal(h.store.get(h.key).data.tasks[0].done, true);
   assert.equal(h.store.get(h.key).data.preferences.name, "Phone");
 });
-test("explicit conflict resolution keeps both planners and refuses stale confirmations", async (t) => {
+test("explicit conflict resolution keeps both activities in one planner and refuses stale confirmations", async (t) => {
   const remote = workspace();
   remote.schedules[0].entries[0].title = "Computer class";
   const h = harness(t, { remote });
@@ -225,8 +226,12 @@ test("explicit conflict resolution keeps both planners and refuses stale confirm
   assert.equal(h.engine.getSnapshot().status, "conflict");
   assert.equal(h.current().schedules.length, 1);
   await h.engine.syncNow("both");
-  assert.equal(h.store.get(h.key).data.schedules.length, 2);
-  assert.equal(h.current().schedules.length, 2);
+  assert.equal(h.store.get(h.key).data.schedules.length, 1);
+  assert.equal(h.current().schedules[0].entries.length, 2);
+  assert.deepEqual(
+    new Set(h.current().schedules[0].entries.map((entry) => entry.title)),
+    new Set(["Phone class", "Computer class"]),
+  );
 });
 test("authentication failures leave pending edits intact", async (t) => {
   const h = harness(t);
@@ -288,5 +293,159 @@ test("uploading a local edit preserves its timestamp and does not replace local 
   assert.equal(
     h.store.get(h.key).data.schedules[0].entries[0].title,
     "Local class edit",
+  );
+});
+
+test("review choices resolve separate conflicts and retain unrelated changes from both devices", async (t) => {
+  const remote = workspace();
+  remote.schedules[0].entries[0].title = "Account class";
+  remote.tasks[0].title = "Account task";
+  remote.preferences.avatar = "🐱";
+  const h = harness(t, { remote });
+  h.edit((data) => {
+    data.schedules[0].entries[0].title = "Phone class";
+    data.tasks[0].title = "Phone task";
+    data.schedules[0].title = "Phone planner title";
+  });
+  await h.engine.syncNow();
+  const review = h.engine.getSnapshot().conflict.review;
+  assert.equal(review.items.length, 2);
+  const choices = Object.fromEntries(
+    review.items.map((item) => [
+      item.id,
+      item.kind === "activity" ? "local" : "account",
+    ]),
+  );
+  await h.engine.syncNow({ reviewId: review.id, choices });
+  assert.equal(h.engine.getSnapshot().status, "synced");
+  assert.equal(h.current().schedules[0].entries[0].title, "Phone class");
+  assert.equal(h.current().tasks[0].title, "Account task");
+  assert.equal(h.current().schedules[0].title, "Phone planner title");
+  assert.equal(h.current().preferences.avatar, "🐱");
+});
+test("local changes during review invalidate old choices before any upload", async (t) => {
+  const remote = workspace();
+  remote.schedules[0].entries[0].title = "Account class";
+  const h = harness(t, { remote });
+  h.edit((data) => {
+    data.schedules[0].entries[0].title = "Phone class";
+  });
+  await h.engine.syncNow();
+  const review = h.engine.getSnapshot().conflict.review;
+  h.edit((data) => {
+    data.tasks[0].title = "Typed during review";
+  });
+  await h.engine.syncNow({
+    reviewId: review.id,
+    choices: { [review.items[0].id]: "local" },
+  });
+  assert.equal(h.engine.getSnapshot().status, "conflict");
+  assert.notEqual(h.engine.getSnapshot().conflict.review.id, review.id);
+  assert.equal(h.store.get(h.key).revision, 1);
+  assert.equal(h.current().tasks[0].title, "Typed during review");
+});
+test("partial choices and stale review IDs cannot apply a partial workspace", async (t) => {
+  const remote = workspace();
+  remote.schedules[0].entries[0].title = "Account class";
+  const h = harness(t, { remote });
+  h.edit((data) => {
+    data.schedules[0].entries[0].title = "Phone class";
+  });
+  await h.engine.syncNow();
+  const review = h.engine.getSnapshot().conflict.review;
+  await h.engine.syncNow({ reviewId: review.id, choices: {} });
+  assert.equal(h.engine.getSnapshot().status, "error");
+  assert.ok(h.engine.getSnapshot().conflict);
+  assert.equal(h.store.get(h.key).revision, 1);
+  await h.engine.syncNow({
+    reviewId: "old-review",
+    choices: { [review.items[0].id]: "account" },
+  });
+  assert.equal(h.engine.getSnapshot().status, "conflict");
+  assert.equal(h.store.get(h.key).revision, 1);
+  assert.equal(h.current().schedules[0].entries[0].title, "Phone class");
+});
+test("review preserves current device notification preferences that do not synchronize", async (t) => {
+  const remote = workspace();
+  remote.schedules[0].entries[0].title = "Account class";
+  const h = harness(t, { remote });
+  h.edit((data) => {
+    data.schedules[0].entries[0].title = "Phone class";
+  });
+  await h.engine.syncNow();
+  const review = h.engine.getSnapshot().conflict.review;
+  h.edit((data) => {
+    data.preferences.reminders = true;
+    data.preferences.reminderMinutes = 30;
+  });
+  await h.engine.syncNow({
+    reviewId: review.id,
+    choices: { [review.items[0].id]: "account" },
+  });
+  assert.equal(h.engine.getSnapshot().status, "synced");
+  assert.equal(h.current().preferences.reminders, true);
+  assert.equal(h.current().preferences.reminderMinutes, 30);
+});
+test("changes made while a review safety copy saves trigger a new review without uploading", async (t) => {
+  const remote = workspace();
+  remote.schedules[0].entries[0].title = "Account class";
+  const options = { remote },
+    h = harness(t, options);
+  h.edit((data) => {
+    data.schedules[0].entries[0].title = "Phone class";
+  });
+  await h.engine.syncNow();
+  const review = h.engine.getSnapshot().conflict.review;
+  options.beforeSafety = () =>
+    h.edit((data) => {
+      data.tasks[0].title = "Still editing";
+    });
+  await h.engine.syncNow({
+    reviewId: review.id,
+    choices: { [review.items[0].id]: "account" },
+  });
+  assert.equal(h.engine.getSnapshot().status, "conflict");
+  assert.equal(h.store.get(h.key).revision, 1);
+  assert.equal(h.current().tasks[0].title, "Still editing");
+});
+test("an account write race refreshes review without duplicating a previously kept activity", async (t) => {
+  const remote = workspace();
+  remote.schedules[0].entries[0].title = "Account class";
+  const h = harness(t, { remote });
+  h.edit((data) => {
+    data.schedules[0].entries[0].title = "Phone class";
+  });
+  await h.engine.syncNow();
+  const review = h.engine.getSnapshot().conflict.review,
+    write = h.api.write;
+  let race = true;
+  h.api.write = async (...args) => {
+    if (race) {
+      race = false;
+      const newer = h.store.get(h.key).data;
+      newer.schedules[0].entries[0].title = "Newer account class";
+      h.store.save(h.key, 1, newer);
+      throw new AccountError(409, "A new account revision exists.");
+    }
+    return write(...args);
+  };
+  await h.engine.syncNow({
+    reviewId: review.id,
+    choices: { [review.items[0].id]: "both" },
+  });
+  const refreshed = h.engine.getSnapshot().conflict.review;
+  assert.notEqual(refreshed.id, review.id);
+  assert.equal(h.current().schedules[0].entries.length, 2);
+  await h.engine.syncNow({
+    reviewId: refreshed.id,
+    choices: Object.fromEntries(
+      refreshed.items.map((item) => [item.id, "account"]),
+    ),
+  });
+  assert.equal(h.engine.getSnapshot().status, "synced");
+  assert.equal(h.current().schedules[0].entries.length, 2);
+  assert.deepEqual(
+    new Set(h.current().schedules[0].entries.map((entry) => entry.title)),
+    new Set(["Phone class", "Newer account class"]),
   );
 });

@@ -1,5 +1,6 @@
 import type { AppData, Entry, Schedule, Task } from "../model";
 import { duplicateEntries } from "../series.ts";
+import type { ConflictKind, MergeConflictItem } from "./syncTypes";
 
 function canonical(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonical);
@@ -50,7 +51,7 @@ export function onThisDevice(shared: AppData, current: AppData): AppData {
   };
 }
 type GroupItem = { id: string; seriesId?: string };
-function taskGroupKey(items: GroupItem[]) {
+export function taskGroupKey(items: GroupItem[]) {
   const parents = new Map<string, string>();
   const find = (id: string) => {
     let root = id;
@@ -71,10 +72,10 @@ function taskGroupKey(items: GroupItem[]) {
   }
   return (item: GroupItem) => find(item.seriesId || item.id);
 }
-function grouped<T extends GroupItem>(
+export function grouped<T extends GroupItem>(
   entries: T[],
   key: (item: T) => string = (item) => item.seriesId || item.id,
-) {
+): Record<string, T[]> {
   const groups = new Map<string, T[]>();
   for (const entry of entries) {
     const id = key(entry);
@@ -82,35 +83,57 @@ function grouped<T extends GroupItem>(
     if (group) group.push(entry);
     else groups.set(id, [entry]);
   }
-  return Object.fromEntries(
-    [...groups].map(([id, list]) => [
-      id,
-      list.sort((a, b) => a.id.localeCompare(b.id)),
-    ]),
+  return Object.assign(
+    Object.create(null),
+    Object.fromEntries(
+      [...groups].map(([id, list]) => [
+        id,
+        list.sort((a, b) => a.id.localeCompare(b.id)),
+      ]),
+    ),
   );
 }
 function mergeValue(
   base: any,
   local: any,
   remote: any,
-  path: string,
+  path: string[],
   conflicts: string[],
+  items: MergeConflictItem[],
 ): any {
+  const conflict = (
+    kind: ConflictKind = path[0] === "schedules" && path.length === 2
+      ? "planner"
+      : path[0] === "tasks" && path.length === 2
+        ? "task"
+        : "field",
+  ) => {
+    conflicts.push(["workspace", ...path].join("."));
+    items.push({
+      id: JSON.stringify(path),
+      path,
+      kind,
+      base: structuredClone(base),
+      local: structuredClone(local),
+      account: structuredClone(remote),
+    });
+  };
   if (same(local, remote)) return local;
   if (same(local, base)) return remote;
   if (same(remote, base)) return local;
   if (local === undefined || remote === undefined) {
-    conflicts.push(path);
+    conflict();
     return remote;
   }
   if (Array.isArray(local) && Array.isArray(remote)) {
     if (
-      path.endsWith(".entries") ||
-      (path === "workspace.tasks" &&
+      path.at(-1) === "entries" ||
+      (path.length === 1 &&
+        path[0] === "tasks" &&
         [...local, ...remote, ...(base || [])].some((task) => task.seriesId))
     ) {
       const groupKey =
-        path === "workspace.tasks"
+        path.length === 1 && path[0] === "tasks"
           ? taskGroupKey([...(base || []), ...local, ...remote])
           : undefined;
       const b = grouped(base || [], groupKey),
@@ -119,7 +142,8 @@ function mergeValue(
         output: any[] = [];
       for (const id of new Set([...Object.keys(r), ...Object.keys(l)])) {
         if (
-          path === "workspace.tasks" &&
+          path.length === 1 &&
+          path[0] === "tasks" &&
           ![...(b[id] || []), ...(l[id] || []), ...(r[id] || [])].some(
             (task) => task.seriesId,
           )
@@ -128,8 +152,9 @@ function mergeValue(
             b[id]?.[0],
             l[id]?.[0],
             r[id]?.[0],
-            `${path}.${id}`,
+            [...path, id],
             conflicts,
+            items,
           );
           if (value !== undefined) output.push(value);
           continue;
@@ -138,7 +163,23 @@ function mergeValue(
           output.push(...(l[id] || []));
         else if (same(l[id], b[id])) output.push(...(r[id] || []));
         else {
-          conflicts.push(`${path}.${id}`);
+          const location = [...path, id];
+          conflicts.push(["workspace", ...location].join("."));
+          items.push({
+            id: JSON.stringify(location),
+            path: location,
+            kind: path.at(-1) === "entries" ? "activity" : "task-series",
+            base: structuredClone(b[id] || []),
+            local: structuredClone(l[id] || []),
+            account: structuredClone(r[id] || []),
+            memberIds: [
+              ...new Set(
+                [...(b[id] || []), ...(l[id] || []), ...(r[id] || [])].map(
+                  (item) => item.id,
+                ),
+              ),
+            ],
+          });
           output.push(...(r[id] || []));
         }
       }
@@ -150,7 +191,10 @@ function mergeValue(
       )
     ) {
       const map = (items: any[]) =>
-        Object.fromEntries(items.map((item) => [item.id, item]));
+        Object.assign(
+          Object.create(null),
+          Object.fromEntries(items.map((item) => [item.id, item])),
+        );
       const b = map(base || []),
         l = map(local),
         r = map(remote);
@@ -158,7 +202,7 @@ function mergeValue(
         ...new Set([...remote.map((v) => v.id), ...local.map((v) => v.id)]),
       ]
         .map((id) =>
-          mergeValue(b[id], l[id], r[id], `${path}.${id}`, conflicts),
+          mergeValue(b[id], l[id], r[id], [...path, id], conflicts, items),
         )
         .filter((v) => v !== undefined);
     }
@@ -175,7 +219,7 @@ function mergeValue(
           (r.has(id) && !b.has(id)),
       );
     }
-    conflicts.push(path);
+    conflict();
     return remote;
   }
   if (
@@ -192,40 +236,68 @@ function mergeValue(
       ...Object.keys(remote),
       ...Object.keys(local),
     ])) {
+      if (!path.length && key === "activeId") continue;
       const merged = mergeValue(
-        base?.[key],
-        local[key],
-        remote[key],
-        `${path}.${key}`,
+        base && Object.hasOwn(base, key) ? base[key] : undefined,
+        Object.hasOwn(local, key) ? local[key] : undefined,
+        Object.hasOwn(remote, key) ? remote[key] : undefined,
+        [...path, key],
         conflicts,
+        items,
       );
-      if (merged !== undefined) output[key] = merged;
+      if (merged !== undefined)
+        Object.defineProperty(output, key, {
+          value: merged,
+          enumerable: true,
+          writable: true,
+          configurable: true,
+        });
     }
     return output;
   }
-  conflicts.push(path);
+  conflict();
   return remote;
 }
 export function mergeWorkspace(base: AppData, local: AppData, remote: AppData) {
   const conflicts: string[] = [];
+  const items: MergeConflictItem[] = [];
   const merged = mergeValue(
     sharedWorkspace(base),
     sharedWorkspace(local),
     sharedWorkspace(remote),
-    "workspace",
+    [],
     conflicts,
+    items,
   ) as AppData;
   if (!merged.schedules.length) {
     conflicts.push("workspace.schedules");
+    items.push({
+      id: JSON.stringify(["schedules"]),
+      path: ["schedules"],
+      kind: "planners",
+      base: structuredClone(base.schedules),
+      local: structuredClone(local.schedules),
+      account: structuredClone(remote.schedules),
+      reason: "Keep at least one planner in your workspace.",
+    });
     merged.schedules = remote.schedules.length
       ? remote.schedules
       : local.schedules;
   }
   merged.activeId = merged.schedules[0].id;
-  merged.preferences.favorites = merged.preferences.favorites.filter((id) =>
-    merged.schedules.some((s) => s.id === id),
+  const retainedPlanners = new Set(
+    merged.schedules.map((schedule) => schedule.id),
   );
-  return { data: onThisDevice(merged, local), conflicts };
+  for (const item of items) {
+    if (item.kind === "planner") retainedPlanners.add(item.path[1]);
+    if (item.kind === "planners")
+      for (const schedule of [...(item.local || []), ...(item.account || [])])
+        retainedPlanners.add(schedule.id);
+  }
+  merged.preferences.favorites = merged.preferences.favorites.filter((id) =>
+    retainedPlanners.has(id),
+  );
+  return { data: onThisDevice(merged, local), conflicts, items };
 }
 /** Explicit conflict choice: retain differing planners/tasks as separate copies. */
 export function keepBothWorkspaces(local: AppData, remote: AppData): AppData {

@@ -16,6 +16,7 @@ import {
   type SyncState,
   type SyncChoice,
 } from "../services/workspaceSync";
+import type { ConflictSelections } from "../services/syncTypes";
 import {
   db,
   loadData,
@@ -356,7 +357,7 @@ export function useAccounts(
       setBusy(false);
     }
   }
-  async function resolveConflict(choice: SyncChoice) {
+  async function resolveConflict(choice: SyncChoice | ConflictSelections) {
     await engine?.syncNow(choice);
     if (!engine?.getSnapshot().conflict) setConflictOpen(false);
   }
@@ -390,6 +391,7 @@ export function useAccounts(
     signOut,
     toggleSync,
     resolveConflict,
+    refreshConflict: () => engine?.syncNow({ refresh: true }),
     syncNow: () => engine?.retry(),
     setEditing,
     linkReminders: useCallback(

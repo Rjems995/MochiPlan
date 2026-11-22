@@ -180,7 +180,7 @@ test("phone and computer merge offline edits, survive an offline reload, and ret
   }
 });
 
-test("overlapping class edits pause sync and keep-both preserves valid separate planners", async ({
+test("overlapping class edits pause sync and keep-both preserves both activities in one planner", async ({
   browser,
 }) => {
   const api = await backend(),
@@ -241,8 +241,9 @@ test("overlapping class edits pause sync and keep-both preserves valid separate 
     await phone.page.screenshot({
       path: ".sites-runtime/account-conflict-mobile.png",
     });
+    await dialog.getByRole("radio", { name: "Keep both", exact: true }).check();
     await dialog
-      .getByRole("button", { name: "Keep both sets of plans", exact: true })
+      .getByRole("button", { name: "Apply reviewed changes", exact: true })
       .click();
     await expect(dialog).toHaveCount(0);
     await synced(phone.page);
@@ -251,10 +252,7 @@ test("overlapping class edits pause sync and keep-both preserves valid separate 
       phone.page
         .getByRole("combobox", { name: "Active planner", exact: true })
         .locator("option"),
-    ).toHaveCount(2);
-    await phone.page
-      .getByRole("combobox", { name: "Active planner", exact: true })
-      .selectOption({ label: "Spring semester (from this device)" });
+    ).toHaveCount(1);
     await phone.page.getByRole("button", { name: "Week", exact: true }).click();
     await expect(
       phone.page

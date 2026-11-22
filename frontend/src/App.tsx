@@ -120,6 +120,7 @@ function WorkspaceApplication({
   );
   const backups = useBackups(workspace, studio, navigation, feedback.notify);
   const editing = !!(
+    accounts.conflictOpen ||
     studio.editor ||
     studio.pendingEdit ||
     studio.calendarOpen ||

@@ -23,6 +23,7 @@ import "./reminders.css";
 import "./accounts.css";
 import "./sharing.css";
 import "./tasks.css";
+import "./sync-review.css";
 registerSW({
   immediate: true,
   onRegisteredSW(_url, registration) {
