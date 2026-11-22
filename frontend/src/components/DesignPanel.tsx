@@ -1,18 +1,15 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Palette,
   Sparkles,
   SlidersHorizontal,
   Check,
   ChevronDown,
-  Upload,
-  X,
   Heart,
   AlignLeft,
   AlignCenter,
   AlignRight,
   RotateCcw,
-  ImagePlus,
   Type,
 } from "lucide-react";
 import {
@@ -28,6 +25,7 @@ import { Modal } from "./Modal";
 import { StickerArt } from "./StickerArt";
 import { stickerCatalog, illustrationFor } from "../illustrations";
 import { TextDesignPanel } from "./TextDesignPanel";
+import { BackgroundImageControls } from "./BackgroundImageControls";
 type Props = {
   schedule: Schedule;
   onDesign: (patch: Partial<Design>) => void;
@@ -40,6 +38,7 @@ type Props = {
   preferences: Preferences;
   onPreferences: (patch: Partial<Preferences>) => void;
   notify: (text: string) => void;
+  previewAspect: number;
 };
 export function DesignPanel({
   schedule,
@@ -53,6 +52,7 @@ export function DesignPanel({
   preferences,
   onPreferences,
   notify,
+  previewAspect,
 }: Props) {
   const [customOpen, setCustomOpen] = useState(false);
   const [customName, setCustomName] = useState("My little palette");
@@ -68,7 +68,6 @@ export function DesignPanel({
     if (selectedTextBox) setTab("text");
   }, [selectedTextBox, textEditRequest]);
   const [all, setAll] = useState(false);
-  const upload = useRef<HTMLInputElement>(null);
   const d = schedule.design;
   const selected = d.stickers.find((s) => s.id === selectedSticker);
   const updateSticker = (patch: Partial<Sticker>) =>
@@ -221,41 +220,11 @@ export function DesignPanel({
               ))}
             </div>
           </fieldset>
-          <button
-            className="upload-background"
-            onClick={() => upload.current?.click()}
-          >
-            <ImagePlus size={15} />
-            {d.image ? "Replace background" : "Upload a background"}
-          </button>
-          {d.image && (
-            <button
-              className="text-button"
-              onClick={() => onDesign({ image: "" })}
-            >
-              Remove image
-              <X size={12} />
-            </button>
-          )}
-          <input
-            ref={upload}
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            hidden
-            onChange={(ev) => {
-              const file = ev.target.files?.[0];
-              if (!file) return;
-              if (file.size > 5 * 1024 * 1024) {
-                notify("Choose an image smaller than 5 MB.");
-                return;
-              }
-              const reader = new FileReader();
-              reader.onload = () => onDesign({ image: String(reader.result) });
-              reader.onerror = () =>
-                notify("That image could not be opened. Please try another.");
-              reader.readAsDataURL(file);
-              ev.target.value = "";
-            }}
+          <BackgroundImageControls
+            design={d}
+            onDesign={onDesign}
+            aspect={previewAspect}
+            notify={notify}
           />
         </div>
       )}

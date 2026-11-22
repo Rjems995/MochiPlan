@@ -26,6 +26,7 @@ import "./tasks.css";
 import "./sync-review.css";
 import "./export.css";
 import "./text-decorations.css";
+import "./background-image.css";
 registerSW({
   immediate: true,
   onRegisteredSW(_url, registration) {

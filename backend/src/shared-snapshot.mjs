@@ -89,6 +89,13 @@ export function sharedSnapshot(body) {
   schedule.design.stickers = source.design.stickers.map((sticker) =>
     pick(sticker, ["id", "emoji", "x", "y", "size", "rotation"]),
   );
+  if (source.design.imageAdjustment)
+    schedule.design.imageAdjustment = pick(source.design.imageAdjustment, [
+      "fit",
+      "zoom",
+      "x",
+      "y",
+    ]);
   if (source.design.textBoxes !== undefined)
     schedule.design.textBoxes = source.design.textBoxes.map((box) =>
       pick(box, [

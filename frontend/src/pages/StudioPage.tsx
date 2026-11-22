@@ -202,6 +202,12 @@ export function StudioPage() {
                 preferences={p}
                 onPreferences={pref}
                 notify={notify}
+                previewAspect={
+                  canvasRef.current?.offsetHeight
+                    ? canvasRef.current.offsetWidth /
+                      canvasRef.current.offsetHeight
+                    : 1.5
+                }
               />
             </FitContent>
           </div>

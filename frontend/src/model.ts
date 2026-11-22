@@ -60,12 +60,19 @@ export type Design = {
   stickers: Sticker[];
   textBoxes?: TextBox[];
   image: string;
+  imageAdjustment?: BackgroundImageAdjustment;
   startHour: number;
   endHour: number;
   weekends: boolean;
   gradient: boolean;
   subtitle: string;
   customTheme?: Theme;
+};
+export type BackgroundImageAdjustment = {
+  fit: "cover" | "contain";
+  zoom: number;
+  x: number;
+  y: number;
 };
 export type Schedule = {
   id: string;

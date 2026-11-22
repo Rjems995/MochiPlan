@@ -19,6 +19,7 @@ import { StickerArt } from "./StickerArt";
 import { illustrationFor } from "../illustrations";
 import { readableColor } from "../contrast";
 import { DecorativeText } from "./DecorativeText";
+import { PlannerBackgroundPhoto } from "./PlannerBackgroundPhoto";
 import {
   dateKey,
   dateForWeekday,
@@ -491,7 +492,7 @@ export function ScheduleCanvas({
     borderWidth: d.border === "double" ? 5 : 1,
     borderColor: theme.accent,
     backgroundImage: d.image
-      ? `linear-gradient(#ffffff22,#ffffff22),url(${d.image})`
+      ? undefined
       : d.gradient
         ? `linear-gradient(135deg, ${d.background}, ${theme.accent}65)`
         : d.pattern === "dots"
@@ -500,7 +501,7 @@ export function ScheduleCanvas({
             ? `linear-gradient(${theme.accent}22 1px, transparent 1px),linear-gradient(90deg,${theme.accent}22 1px,transparent 1px)`
             : undefined,
     backgroundSize: d.image
-      ? "cover"
+      ? undefined
       : d.gradient
         ? "cover"
         : d.pattern === "dots"
@@ -530,6 +531,12 @@ export function ScheduleCanvas({
         touch.current = null;
       }}
     >
+      {d.image && (
+        <PlannerBackgroundPhoto
+          image={d.image}
+          adjustment={d.imageAdjustment}
+        />
+      )}
       <div className="paper-heading">
         <div className="paper-kicker">
           a little space for everything you love
