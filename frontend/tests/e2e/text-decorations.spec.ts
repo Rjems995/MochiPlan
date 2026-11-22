@@ -31,6 +31,100 @@ async function backup(page: Page) {
 }
 const text = (page: Page) => page.locator(".canvas-inner .canvas-text");
 
+for (const viewport of [
+  { name: "desktop", width: 1440, height: 1000 },
+  { name: "mobile", width: 390, height: 844 },
+  { name: "tablet", width: 820, height: 1180 },
+]) {
+  test(`${viewport.name} offers one-tap text colors and validates custom hex colors`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({
+      width: viewport.width,
+      height: viewport.height,
+    });
+    const panel = await addText(page),
+      layer = text(page);
+    const palette = panel.getByRole("group", {
+      name: "Text color",
+      exact: true,
+    });
+    await expect(palette.getByRole("button")).toHaveCount(12);
+    await expect(
+      palette.getByRole("button", { name: "Rose text color", exact: true }),
+    ).toHaveAttribute("aria-pressed", "true");
+    const blue = palette.getByRole("button", {
+      name: "Blue text color",
+      exact: true,
+    });
+    await blue.click();
+    await expect(layer).toHaveCSS("color", "rgb(80, 111, 186)");
+    await expect(blue).toHaveAttribute("aria-pressed", "true");
+    const target = (await blue.boundingBox())!;
+    expect(target.width).toBeGreaterThanOrEqual(44);
+    expect(target.height).toBeGreaterThanOrEqual(44);
+    const lavender = palette.getByRole("button", {
+      name: "Lavender text color",
+      exact: true,
+    });
+    await lavender.focus();
+    await lavender.press("Enter");
+    await expect(layer).toHaveCSS("color", "rgb(138, 98, 176)");
+    await palette
+      .getByRole("button", { name: "White text color", exact: true })
+      .click();
+    await expect(layer).toHaveCSS("color", "rgb(255, 255, 255)");
+    const hex = palette.getByRole("textbox", {
+      name: "Hex text color",
+      exact: true,
+    });
+    await hex.fill("#52a38b");
+    await expect(layer).toHaveCSS("color", "rgb(82, 163, 139)");
+    await hex.fill("#zzzzzz");
+    await hex.press("Tab");
+    await expect(hex).toHaveAttribute("aria-invalid", "true");
+    await expect(palette.getByRole("alert")).toContainText("Use a hex color");
+    await expect(layer).toHaveCSS("color", "rgb(82, 163, 139)");
+    await hex.fill("abc");
+    await hex.press("Enter");
+    await expect(hex).toHaveValue("#AABBCC");
+    await expect(layer).toHaveCSS("color", "rgb(170, 187, 204)");
+    await expect(palette.getByRole("alert")).toHaveCount(0);
+    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    await expect(layer).toHaveCSS("color", "rgb(82, 163, 139)");
+    await expect(hex).toHaveValue("#52A38B");
+    await page.getByRole("button", { name: "Redo", exact: true }).click();
+    await expect(layer).toHaveCSS("color", "rgb(170, 187, 204)");
+    const saved = await backup(page);
+    expect(
+      saved.data.schedules.find(
+        (schedule: any) => schedule.id === saved.data.activeId,
+      ).design.textBoxes[0].color,
+    ).toBe("#aabbcc");
+    await page.reload();
+    await expect(text(page)).toHaveCSS("color", "rgb(170, 187, 204)");
+    await text(page).dblclick();
+    await expect(
+      page.getByRole("textbox", { name: "Hex text color", exact: true }),
+    ).toHaveValue("#AABBCC");
+    await page
+      .getByRole("button", { name: "Berry text color", exact: true })
+      .click();
+    await expect(text(page)).toHaveCSS("color", "rgb(178, 68, 121)");
+    await expect(
+      palette.getByRole("button", { name: "Berry text color", exact: true }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      await panel.evaluate(
+        (element) => element.scrollWidth <= element.clientWidth,
+      ),
+    ).toBe(true);
+    await page.screenshot({
+      path: `.sites-runtime/text-colors-${viewport.name}.png`,
+    });
+  });
+}
+
 test("text can be styled, positioned, duplicated, undone and saved with the planner", async ({
   page,
 }) => {

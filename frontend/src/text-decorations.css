@@ -125,8 +125,7 @@
   gap: 4px;
   margin: 14px 0;
 }
-.text-style-row button,
-.text-style-row input[type="color"] {
+.text-style-row button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -137,6 +136,111 @@
   border-radius: 7px;
   border: 1px solid var(--line);
   color: var(--ink);
+}
+.text-color-picker {
+  position: relative;
+  border: 0;
+  padding: 0;
+  margin: 16px 0 20px;
+  min-inline-size: 0;
+}
+.text-color-picker legend {
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+.text-color-name {
+  position: absolute;
+  right: 0;
+  top: -31px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.text-color-swatches {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+.text-color-swatches > button {
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid #73665f40;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.text-color-swatches > button[aria-pressed="true"] {
+  outline: 2px solid var(--pink);
+  outline-offset: 2px;
+}
+.text-color-swatches > button:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+.text-custom-color {
+  display: flex;
+  align-items: flex-end;
+  gap: 9px;
+  margin-top: 14px;
+}
+.text-custom-color-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-height: 44px;
+  padding: 7px;
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  cursor: pointer;
+}
+.text-custom-color-button > input {
+  width: 25px;
+  height: 28px;
+  padding: 0;
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.text-custom-color-button > input::-webkit-color-swatch-wrapper {
+  padding: 1px;
+}
+.text-custom-color-button > input::-webkit-color-swatch {
+  border: 1px solid var(--line);
+  border-radius: 5px;
+}
+.text-hex-label {
+  display: block;
+  width: 90px;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.text-hex-label > input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 14px;
+  padding: 8px 6px;
+  margin-top: 4px;
+}
+.text-hex-label > input[aria-invalid="true"] {
+  border-color: var(--pink);
+}
+.text-color-error {
+  font-size: 13px;
+  color: var(--pink);
+  margin-top: 9px;
+  line-height: 1.5;
 }
 .text-layer-actions {
   display: flex;

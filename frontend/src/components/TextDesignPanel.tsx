@@ -11,6 +11,7 @@ import {
 import type { Design, TextBox } from "../model";
 import { uid } from "../model";
 import { newTextBox, textFontFamily, textFonts } from "../textDecorations";
+import { TextColorPicker } from "./TextColorPicker";
 
 export function TextDesignPanel({
   design,
@@ -78,6 +79,10 @@ export function TextDesignPanel({
               onChange={(event) => update({ text: event.target.value })}
             />
           </label>
+          <TextColorPicker
+            color={selected.color}
+            onChange={(color) => update({ color })}
+          />
           <fieldset className="text-fonts">
             <legend>Pretty fonts</legend>
             <div>
@@ -128,12 +133,6 @@ export function TextDesignPanel({
                 <option.icon size={17} />
               </button>
             ))}
-            <input
-              type="color"
-              aria-label="Text color"
-              value={selected.color}
-              onChange={(event) => update({ color: event.target.value })}
-            />
           </div>
           <label className="field-label">
             Text size <span>{selected.fontSize}px</span>
