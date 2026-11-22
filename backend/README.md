@@ -48,6 +48,12 @@ Use revision `0` to create a backup. GET includes its current revision; send tha
 
 Snapshot responses include `contentHash`, `updatedAt`, `source`, and a `summary` of planners, logical activities and tasks. History returns `{ version: 1, revision, latest, versions, retentionLimit }`; metadata does not contain workspace data. Restoring uses normal revision-checked writes, preserving current plans with `before-restore` and then writing the selected snapshot with `restore`. A failed or conflicting restore leaves local plans unchanged. Older database heads migrate into history as `legacy` versions with their original revisions and timestamps.
 
+## Decorative calendar text
+
+Planner designs optionally include `textBoxes`. Each layer has a unique ID, text (up to 300 characters), font (`Caveat`, `Nunito`, `Georgia`, or `DM Sans`), `fontSize` (14–96), hex `color`, `bold`/`italic` booleans, `alignment`, percentage `x`/`y`, percentage `width` (12–90), and `rotation` (−180 to 180). Up to 100 layers are allowed per planner. Client and server validators reject invalid styles and duplicate IDs. Legacy version 1 workspaces remain valid without the field; no database migration is needed.
+
+Backups and account synchronization retain text layers. Shared snapshots include visible decorative text as part of the design, independently of activity detail controls, and strip unknown layer properties. Reminder projections exclude these decorations with the rest of the design.
+
 ## Task fields and deadline alerts
 
 Workspace version 1 tasks retain their original fields and optionally add `subtasks: [{ id, title, done }]`, `dueTime: "HH:mm"`, `reminderMinutes`, `seriesId`, and `recurrence: { frequency, interval, anchorDate, until? }`. Subtask IDs are unique within each task, with up to 100 steps and titles of at most 160 characters. Repeat frequencies are `daily`, `weekly` and `monthly`, with intervals from 1–99, a valid anchor date on/before the deadline, and an optional inclusive end date on/after it. Repeat series identifiers are at most 160 characters. Reminders support 0, 15, 30, 60 or 1440 minutes and require a deadline. Existing tasks need no migration; both backup validators reject malformed extensions.

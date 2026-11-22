@@ -249,6 +249,14 @@ function copiedPlanner(schedule: Schedule, makeId: () => string): Schedule {
         ...sticker,
         id: makeId(),
       })),
+      ...(schedule.design.textBoxes
+        ? {
+            textBoxes: schedule.design.textBoxes.map((box) => ({
+              ...box,
+              id: makeId(),
+            })),
+          }
+        : {}),
     },
   };
 }

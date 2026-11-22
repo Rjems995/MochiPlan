@@ -36,6 +36,14 @@ const names: Record<string, string> = {
   pattern: "Paper texture",
   font: "Font",
   fontSize: "Text size",
+  textBoxes: "Text decorations",
+  text: "Text",
+  bold: "Bold",
+  italic: "Italic",
+  x: "Horizontal position",
+  y: "Vertical position",
+  width: "Width",
+  rotation: "Rotation",
   radius: "Corner roundness",
   border: "Border",
   grid: "Grid lines",
@@ -173,6 +181,19 @@ export function itemDescription(
     };
   const property = fieldName(item.path.at(-1) || "Value");
   let label = property;
+  let decorationText = "";
+  if (item.path.includes("textBoxes") && schedule) {
+    const position = item.path.indexOf("textBoxes");
+    decorationText =
+      workspaces
+        .flatMap(
+          (value) =>
+            value?.schedules.find((candidate) => candidate.id === schedule.id)
+              ?.design.textBoxes || [],
+        )
+        .find((box) => box.id === item.path[position + 1])?.text ||
+      "Text decoration";
+  }
   if (item.path.includes("subtasks") && task) {
     const position = item.path.indexOf("subtasks"),
       stepId = item.path[position + 1];
@@ -188,6 +209,7 @@ export function itemDescription(
   return {
     label,
     context:
+      (decorationText ? `${schedule?.name} · ${decorationText}` : "") ||
       task?.title ||
       schedule?.name ||
       (item.path[0] === "preferences" ? "Your settings" : "Workspace"),

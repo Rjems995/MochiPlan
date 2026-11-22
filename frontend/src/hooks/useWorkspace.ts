@@ -195,6 +195,14 @@ export function useWorkspace(notify: (text: string) => void) {
       design: {
         ...s.design,
         stickers: s.design.stickers.map((st) => ({ ...st, id: uid() })),
+        ...(s.design.textBoxes
+          ? {
+              textBoxes: s.design.textBoxes.map((box) => ({
+                ...box,
+                id: uid(),
+              })),
+            }
+          : {}),
       },
     };
     changeSchedules((list) => [...list, copy]);

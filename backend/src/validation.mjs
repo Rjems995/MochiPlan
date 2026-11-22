@@ -1,6 +1,7 @@
 import { HttpError } from "./errors.mjs";
 import { validSeriesMetadata } from "./series-validation.mjs";
 import { validTaskExtensions } from "./task-validation.mjs";
+import { validTextBoxes } from "./text-validation.mjs";
 
 const object = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 const text = (v, max = 10000) => typeof v === "string" && v.length <= max;
@@ -176,6 +177,7 @@ export function validateWorkspace(body) {
           number(sticker.rotation, -360, 360),
         "A sticker is invalid.",
       );
+    ensure(validTextBoxes(a.textBoxes), "A text decoration is invalid.");
     ensure(
       a.customTheme === undefined || theme(a.customTheme),
       "A custom palette is invalid.",

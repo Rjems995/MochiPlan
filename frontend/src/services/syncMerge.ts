@@ -317,6 +317,14 @@ export function keepBothWorkspaces(local: AppData, remote: AppData): AppData {
         design: {
           ...structuredClone(schedule.design),
           stickers: schedule.design.stickers.map((s) => ({ ...s, id: id() })),
+          ...(schedule.design.textBoxes
+            ? {
+                textBoxes: schedule.design.textBoxes.map((box) => ({
+                  ...box,
+                  id: id(),
+                })),
+              }
+            : {}),
         },
       });
   }

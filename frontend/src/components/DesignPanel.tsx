@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Palette,
   Sparkles,
@@ -13,6 +13,7 @@ import {
   AlignRight,
   RotateCcw,
   ImagePlus,
+  Type,
 } from "lucide-react";
 import {
   type Schedule,
@@ -26,12 +27,16 @@ import { Mochi } from "./Artwork";
 import { Modal } from "./Modal";
 import { StickerArt } from "./StickerArt";
 import { stickerCatalog, illustrationFor } from "../illustrations";
+import { TextDesignPanel } from "./TextDesignPanel";
 type Props = {
   schedule: Schedule;
   onDesign: (patch: Partial<Design>) => void;
   onTheme: (id: string) => void;
   selectedSticker: string | null;
   onSelectSticker: (id: string | null) => void;
+  selectedTextBox: string | null;
+  onSelectTextBox: (id: string | null) => void;
+  textEditRequest: number;
   preferences: Preferences;
   onPreferences: (patch: Partial<Preferences>) => void;
   notify: (text: string) => void;
@@ -42,6 +47,9 @@ export function DesignPanel({
   onTheme,
   selectedSticker,
   onSelectSticker,
+  selectedTextBox,
+  onSelectTextBox,
+  textEditRequest,
   preferences,
   onPreferences,
   notify,
@@ -53,7 +61,12 @@ export function DesignPanel({
   );
   const [customAccent, setCustomAccent] = useState("#b5839e");
   const [customColors, setCustomColors] = useState([...themes[0].palette]);
-  const [tab, setTab] = useState<"themes" | "stickers" | "layout">("themes");
+  const [tab, setTab] = useState<"themes" | "stickers" | "text" | "layout">(
+    "themes",
+  );
+  useEffect(() => {
+    if (selectedTextBox) setTab("text");
+  }, [selectedTextBox, textEditRequest]);
   const [all, setAll] = useState(false);
   const upload = useRef<HTMLInputElement>(null);
   const d = schedule.design;
@@ -77,6 +90,7 @@ export function DesignPanel({
           [
             { id: "themes", icon: Palette, label: "Themes" },
             { id: "stickers", icon: Sparkles, label: "Stickers" },
+            { id: "text", icon: Type, label: "Text" },
             { id: "layout", icon: SlidersHorizontal, label: "Layout" },
           ] as const
         ).map((t) => (
@@ -318,6 +332,14 @@ export function DesignPanel({
             </div>
           )}
         </div>
+      )}
+      {tab === "text" && (
+        <TextDesignPanel
+          design={d}
+          selectedId={selectedTextBox}
+          onDesign={onDesign}
+          onSelect={onSelectTextBox}
+        />
       )}
       {tab === "layout" && (
         <div className="panel-content">

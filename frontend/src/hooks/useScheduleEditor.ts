@@ -25,6 +25,7 @@ import {
   type Entry,
   type Schedule,
   type Sticker,
+  type TextBox,
   type View,
 } from "../model";
 import type { NavigationController } from "./useNavigation";
@@ -63,6 +64,15 @@ export function useScheduleEditor(
     date: string;
   } | null>(null);
   const [selectedSticker, setSelectedSticker] = useState<string | null>(null);
+  const [selectedTextBox, setSelectedTextBox] = useState<string | null>(null);
+  const [textEditRequest, setTextEditRequest] = useState(0);
+  function selectTextBox(id: string | null) {
+    setSelectedTextBox(id);
+    if (id) {
+      setSelectedSticker(null);
+      setTextEditRequest((value) => value + 1);
+    }
+  }
   const [tools, setTools] = useState(() => window.innerWidth > 850);
   const [canvasScale, setCanvasScale] = useState(1);
   const [canvasFrame, setCanvasFrame] = useState({ width: 0, height: 0 });
@@ -102,6 +112,7 @@ export function useScheduleEditor(
     setData((old) => (old ? { ...old, activeId: id } : old));
     setPage("studio");
     setSelectedSticker(null);
+    setSelectedTextBox(null);
   }
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 7 } }),
@@ -266,7 +277,30 @@ export function useScheduleEditor(
               ),
             }),
           selectedSticker,
-          onSelectSticker: setSelectedSticker,
+          onSelectSticker: (id: string | null) => {
+            setSelectedSticker(id);
+            setSelectedTextBox(null);
+          },
+          selectedTextBox,
+          onSelectTextBox: selectTextBox,
+          onTextBox: (id: string, patch: Partial<TextBox>) =>
+            design({
+              textBoxes: (active.design.textBoxes || []).map((box) =>
+                box.id === id ? { ...box, ...patch } : box,
+              ),
+            }),
+          onEditTextBox: (id: string) => {
+            selectTextBox(id);
+            setTools(true);
+          },
+          onDeleteTextBox: (id: string) => {
+            design({
+              textBoxes: (active.design.textBoxes || []).filter(
+                (box) => box.id !== id,
+              ),
+            });
+            setSelectedTextBox(null);
+          },
         }
       : null;
   function saveCalendar(
@@ -388,6 +422,10 @@ export function useScheduleEditor(
     setExportOpen,
     selectedSticker,
     setSelectedSticker,
+    selectedTextBox,
+    setSelectedTextBox,
+    selectTextBox,
+    textEditRequest,
     tools,
     setTools,
     focusMode,

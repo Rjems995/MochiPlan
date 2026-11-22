@@ -8,6 +8,7 @@ import {
   type Preferences,
   type View,
   type Sticker,
+  type TextBox,
   dayNames,
   formatTime,
   entryLanes,
@@ -17,6 +18,7 @@ import { Flower, Mochi } from "./Artwork";
 import { StickerArt } from "./StickerArt";
 import { illustrationFor } from "../illustrations";
 import { readableColor } from "../contrast";
+import { DecorativeText } from "./DecorativeText";
 import {
   dateKey,
   dateForWeekday,
@@ -48,6 +50,11 @@ type Props = {
   displayScale?: number;
   hourHeight?: number;
   onChromeChange?: (height: number) => void;
+  selectedTextBox?: string | null;
+  onTextBox?: (id: string, patch: Partial<TextBox>) => void;
+  onSelectTextBox?: (id: string | null) => void;
+  onEditTextBox?: (id: string) => void;
+  onDeleteTextBox?: (id: string) => void;
 };
 function Block({
   entry,
@@ -365,6 +372,11 @@ export function ScheduleCanvas({
   displayScale = 1,
   hourHeight = HOUR_HEIGHT,
   onChromeChange,
+  selectedTextBox,
+  onTextBox,
+  onSelectTextBox,
+  onEditTextBox,
+  onDeleteTextBox,
 }: Props) {
   const paperRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
@@ -755,6 +767,18 @@ export function ScheduleCanvas({
         </span>
       </div>
       <Mochi className="paper-mochi" />
+      {(d.textBoxes || []).map((box) => (
+        <DecorativeText
+          key={box.id}
+          box={box}
+          interactive={interactive}
+          selected={box.id === selectedTextBox}
+          onSelect={() => onSelectTextBox?.(box.id)}
+          onEdit={() => onEditTextBox?.(box.id)}
+          onChange={(patch) => onTextBox?.(box.id, patch)}
+          onDelete={() => onDeleteTextBox?.(box.id)}
+        />
+      ))}
       {d.stickers.map((s) => (
         <DecorativeSticker
           key={s.id}

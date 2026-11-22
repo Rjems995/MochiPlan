@@ -33,6 +33,20 @@ export type Sticker = {
   size: number;
   rotation: number;
 };
+export type TextBox = {
+  id: string;
+  text: string;
+  font: "Caveat" | "Nunito" | "DM Sans" | "Georgia";
+  fontSize: number;
+  color: string;
+  bold: boolean;
+  italic: boolean;
+  alignment: "left" | "center" | "right";
+  x: number;
+  y: number;
+  width: number;
+  rotation: number;
+};
 export type Design = {
   theme: string;
   background: string;
@@ -44,6 +58,7 @@ export type Design = {
   border: string;
   alignment: "left" | "center" | "right";
   stickers: Sticker[];
+  textBoxes?: TextBox[];
   image: string;
   startHour: number;
   endHour: number;

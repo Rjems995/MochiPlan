@@ -3,6 +3,7 @@ import type { AppData, Entry } from "./model";
 import { validSeriesMetadata } from "./series.ts";
 import { isCalendarDate, weekdayForDate } from "./calendar.ts";
 import { validTaskExtensions } from "./taskRules.ts";
+import { validTextBoxes } from "./textDecorations.ts";
 import { activeProfile, workspaceRecord } from "./services/deviceScope.ts";
 export type SyncCheckpoint = {
   id: string;
@@ -215,6 +216,8 @@ export function validateBackup(value: unknown): AppData {
       throw Error("A planner in the backup is invalid.");
     ids.add(s.id as string);
     const design = s.design as Record<string, unknown>;
+    if (!validTextBoxes(design.textBoxes))
+      throw Error("A text decoration in the backup is invalid.");
     if (
       !text(design.theme) ||
       !color(design.background) ||

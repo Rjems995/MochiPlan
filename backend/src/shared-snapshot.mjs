@@ -89,6 +89,23 @@ export function sharedSnapshot(body) {
   schedule.design.stickers = source.design.stickers.map((sticker) =>
     pick(sticker, ["id", "emoji", "x", "y", "size", "rotation"]),
   );
+  if (source.design.textBoxes !== undefined)
+    schedule.design.textBoxes = source.design.textBoxes.map((box) =>
+      pick(box, [
+        "id",
+        "text",
+        "font",
+        "fontSize",
+        "color",
+        "bold",
+        "italic",
+        "alignment",
+        "x",
+        "y",
+        "width",
+        "rotation",
+      ]),
+    );
   if (source.design.customTheme)
     schedule.design.customTheme = pick(source.design.customTheme, [
       "id",

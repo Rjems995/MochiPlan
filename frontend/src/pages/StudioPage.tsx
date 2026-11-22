@@ -46,6 +46,10 @@ export function StudioPage() {
       tools,
       selectedSticker,
       setSelectedSticker,
+      selectedTextBox,
+      setSelectedTextBox,
+      selectTextBox,
+      textEditRequest,
       setWeek,
       weekStart,
       setDay,
@@ -188,7 +192,13 @@ export function StudioPage() {
                 onDesign={design}
                 onTheme={applyTheme}
                 selectedSticker={selectedSticker}
-                onSelectSticker={setSelectedSticker}
+                onSelectSticker={(id) => {
+                  setSelectedSticker(id);
+                  setSelectedTextBox(null);
+                }}
+                selectedTextBox={selectedTextBox}
+                onSelectTextBox={selectTextBox}
+                textEditRequest={textEditRequest}
                 preferences={p}
                 onPreferences={pref}
                 notify={notify}
