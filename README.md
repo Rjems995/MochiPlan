@@ -27,9 +27,11 @@ Edit a weekly calendar while choosing themes, stickers, text and layout settings
 <details>
 <summary>Mobile daily planner</summary>
 
-The phone layout opens a daily calendar with touch navigation and design tools available from the toolbar.
+The phone layout opens a daily calendar. **Add activity**, **Design** and **Export** stay visible with large tap targets. **More** contains the planner picker, sharing, dates, sizing, full screen and Undo/Redo.
 
 <a href="./docs/screenshots/editor-mobile.png"><img src="./docs/screenshots/editor-mobile.png" alt="MochiPlan mobile daily planner with class activities and bottom navigation" width="320"></a>
+
+<a href="./docs/screenshots/mobile-planner-actions.png"><img src="./docs/screenshots/mobile-planner-actions.png" alt="Mobile More dialog with the planner picker and secondary editing actions" width="320"></a>
 
 </details>
 

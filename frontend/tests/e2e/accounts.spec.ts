@@ -6,6 +6,7 @@ import {
   type Page,
 } from "@playwright/test";
 import { once } from "node:events";
+import { openPlannerMore } from "./helpers/plannerToolbar";
 import { createApp } from "../../../backend/src/server.mjs";
 
 const password = "a-long-offline-test-password";
@@ -248,11 +249,13 @@ test("overlapping class edits pause sync and keep-both preserves both activities
     await expect(dialog).toHaveCount(0);
     await synced(phone.page);
     await phone.page.goto("/");
+    await openPlannerMore(phone.page);
     await expect(
       phone.page
         .getByRole("combobox", { name: "Active planner", exact: true })
         .locator("option"),
     ).toHaveCount(1);
+    await phone.page.keyboard.press("Escape");
     await phone.page.getByRole("button", { name: "Week", exact: true }).click();
     await expect(
       phone.page

@@ -1,0 +1,106 @@
+.toolbar-secondary-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+.toolbar-actions .mobile-toolbar-action,
+.mobile-toolbar-label {
+  display: none;
+}
+.mobile-planner-actions .field-label,
+.mobile-planner-actions .field-label > select {
+  font-size: 14px;
+}
+.mobile-planner-actions .field-label > select {
+  min-height: 48px;
+  width: 100%;
+  min-width: 0;
+}
+.planner-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 20px;
+}
+.planner-action-grid .button {
+  justify-content: flex-start;
+  min-height: 56px;
+  padding: 10px 12px;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.35;
+  text-align: left;
+  white-space: normal;
+}
+.planner-action-grid .button > svg {
+  flex-shrink: 0;
+}
+.planner-action-grid .button:disabled {
+  cursor: not-allowed;
+}
+@media (max-width: 850px) {
+  .bounded-workspace .studio-toolbar {
+    padding: 6px;
+    min-height: 0;
+  }
+  .studio-toolbar > .planner-select,
+  .toolbar-actions .toolbar-secondary-actions,
+  .bounded-workspace .canvas-toolbar .tools-toggle {
+    display: none;
+  }
+  .studio-toolbar > .toolbar-actions {
+    display: grid;
+    align-items: stretch;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: 100%;
+    gap: 8px;
+  }
+  .bounded-workspace .studio-toolbar .toolbar-actions > .button {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    width: auto;
+    min-width: 44px;
+    height: auto;
+    min-height: 56px;
+    padding: 7px 4px;
+    gap: 4px;
+    font-size: 14px;
+    line-height: 1.15;
+    border-radius: 9px;
+    white-space: normal;
+  }
+  .bounded-workspace .toolbar-actions .activity-label,
+  .toolbar-actions .mobile-toolbar-label {
+    display: inline;
+  }
+  .bounded-workspace .toolbar-actions .export-label {
+    display: none;
+  }
+  .bounded-workspace .canvas-toolbar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .bounded-workspace .canvas-title-field {
+    justify-self: stretch;
+  }
+  .bounded-workspace .inspector-close {
+    width: 44px;
+    height: 44px;
+  }
+  .modal:has(.mobile-planner-actions) .modal-heading .eyebrow {
+    display: none;
+  }
+  .modal:has(.mobile-planner-actions) .modal-heading h2 {
+    font-size: 22px;
+  }
+  .modal:has(.mobile-planner-actions) .modal-heading > .icon-button {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+  }
+}
+@media (max-width: 640px) {
+  .bounded-workspace .canvas-toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}

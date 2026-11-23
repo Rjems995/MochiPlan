@@ -3,50 +3,32 @@ import { addDays, addMonths, addWeeks, format } from "date-fns";
 import {
   AlertTriangle,
   ArrowRight,
-  Calendar,
-  CalendarDays,
   ChevronLeft,
   ChevronRight,
-  Download,
   GripVertical,
   Heart,
-  Maximize2,
-  Minimize2,
   PanelLeftClose,
   PanelLeftOpen,
   Pencil,
-  Plus,
-  Redo2,
-  Ruler,
-  Share2,
-  Undo2,
   X,
 } from "lucide-react";
-import { dateKey, weekdayForDate } from "../calendar";
 import { DesignPanel } from "../components/DesignPanel";
 import { FitContent } from "../components/FitContent";
 import { ScheduleCanvas } from "../components/ScheduleCanvas";
+import { StudioToolbar } from "../components/StudioToolbar";
 import { useAppContext } from "../context/AppContext";
 import { plannerLayout } from "../plannerSize";
 import { type View } from "../model";
 export function StudioPage() {
   const {
     active,
-    data,
     p,
     studio: {
-      chooseSchedule,
-      setCalendarOpen,
       setSizeOpen,
       sizeOverflow,
-      focusMode,
-      setFocusMode,
       setTools,
-      setEditor,
       view,
-      day,
       week,
-      setExportOpen,
       tools,
       selectedSticker,
       setSelectedSticker,
@@ -72,130 +54,18 @@ export function StudioPage() {
       totalHours,
       displayedConflicts,
     },
-    workspace: {
-      canUndo,
-      performHistory,
-      canRedo,
-      design,
-      applyTheme,
-      pref,
-      updateSchedule,
-    },
+    workspace: { design, applyTheme, pref, updateSchedule },
     feedback: { notify },
     navigation: { navigate },
-    sharing,
   } = useAppContext();
 
   return (
     <>
       <h1 className="sr-only">Design studio</h1>
-      <div className="studio-toolbar">
-        <div className="planner-select">
-          <CalendarDays size={16} />
-          <select
-            aria-label="Active planner"
-            value={active.id}
-            onChange={(ev) => chooseSchedule(ev.target.value)}
-          >
-            {data.schedules.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-          <span className="planner-type">{active.type}</span>
-        </div>
-        <div className="toolbar-actions">
-          <button
-            className="icon-button"
-            aria-label="Share planner"
-            title="Share a read-only copy"
-            onClick={() => sharing.setScheduleId(active.id)}
-          >
-            <Share2 size={17} />
-          </button>
-          <button
-            className="button secondary small calendar-dates-button"
-            aria-label="Calendar dates"
-            title="Semester dates, holidays and cancellations"
-            onClick={() => setCalendarOpen(true)}
-          >
-            <Calendar size={15} />
-            <span className="calendar-label">Calendar dates</span>
-          </button>
-          <button
-            className="icon-button fullscreen-button"
-            aria-label={
-              focusMode ? "Exit full screen editor" : "Full screen editor"
-            }
-            onClick={() => {
-              setFocusMode(!focusMode);
-              if (!focusMode) setTools(false);
-            }}
-          >
-            {focusMode ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-          </button>
-          <button
-            className="button secondary small planner-size-button"
-            aria-label="Planner size"
-            title={
-              active.design.canvasSize
-                ? `Planner size · ${active.design.canvasSize.width} × ${active.design.canvasSize.height} px`
-                : "Planner size · Automatic"
-            }
-            onClick={() => setSizeOpen(true)}
-          >
-            <Ruler size={16} />
-            <span>Size</span>
-          </button>
-          <div className="undo-controls">
-            <button
-              className="icon-button"
-              aria-label="Undo"
-              title="Undo (Ctrl+Z)"
-              disabled={!canUndo}
-              onClick={() => performHistory("undo")}
-            >
-              <Undo2 size={17} />
-            </button>
-            <button
-              className="icon-button"
-              aria-label="Redo"
-              title="Redo (Ctrl+Shift+Z)"
-              disabled={!canRedo}
-              onClick={() => performHistory("redo")}
-            >
-              <Redo2 size={17} />
-            </button>
-          </div>
-          <button
-            className="button secondary small"
-            aria-label="Add activity"
-            onClick={() =>
-              setEditor({
-                entry: null,
-                day: view === "daily" ? day : weekdayForDate(dateKey(week)),
-                start: 540,
-              })
-            }
-          >
-            <Plus size={15} />
-            <span className="activity-label">Add activity</span>
-          </button>
-          <button
-            className="button primary export-button"
-            aria-label="Export planner"
-            title="Export planner"
-            onClick={() => setExportOpen(true)}
-          >
-            <Download size={16} />
-            <span className="export-label">Export planner</span>
-          </button>
-        </div>
-      </div>
+      <StudioToolbar />
       <div className={`studio-layout ${tools ? "" : "tools-hidden"}`}>
         {tools && (
-          <div className="design-inspector">
+          <div className="design-inspector" id="planner-design-tools">
             <button
               className="inspector-close icon-button"
               aria-label="Close design tools"

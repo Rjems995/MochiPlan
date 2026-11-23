@@ -1,3 +1,4 @@
+import { clickPlannerAction } from "./helpers/plannerToolbar";
 import { test, expect, type Page } from "@playwright/test";
 import { dateForWeekday, shiftDate } from "../../src/calendar";
 test.use({ timezoneId: "Asia/Manila" });
@@ -17,9 +18,7 @@ async function saveCalendar(
   end: string,
   holiday?: { date: string; name: string },
 ) {
-  await page
-    .getByRole("button", { name: "Calendar dates", exact: true })
-    .click();
+  await clickPlannerAction(page, "Calendar dates");
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Semester starts", { exact: true }).fill(start);
   await dialog.getByLabel("Semester ends", { exact: true }).fill(end);
@@ -105,9 +104,7 @@ test("semester limits, holidays and single-class cancellation persist and can be
     "All changes saved",
   );
   await page.reload();
-  await page
-    .getByRole("button", { name: "Calendar dates", exact: true })
-    .click();
+  await clickPlannerAction(page, "Calendar dates");
   const dialog = page.getByRole("dialog");
   await expect(
     dialog.getByLabel("Semester starts", { exact: true }),
@@ -177,9 +174,7 @@ test("one-off exams keep their exact date through calendar edits, cancellations,
     .getByRole("button", { name: "Confirm cancellation", exact: true })
     .click();
   await expect(cell(movedDate).locator(".cancelled-note")).toHaveCount(1);
-  await page
-    .getByRole("button", { name: "Calendar dates", exact: true })
-    .click();
+  await clickPlannerAction(page, "Calendar dates");
   await page
     .getByRole("button", {
       name: `Restore Final examination on ${movedDate}`,
@@ -288,9 +283,7 @@ test("new semester planners and exam defaults survive reopening", async ({
       .locator(".canvas-inner .schedule-block")
       .filter({ hasText: "Portfolio exam" }),
   ).toHaveCount(1);
-  await page
-    .getByRole("button", { name: "Calendar dates", exact: true })
-    .click();
+  await clickPlannerAction(page, "Calendar dates");
   await expect(
     page.getByRole("dialog").getByLabel("Semester starts", { exact: true }),
   ).toHaveValue(start);
@@ -339,10 +332,19 @@ test("dated planners fit small screens and daily swipes cross into the next cale
         }),
       )
       .toBe(true);
-    for (const name of ["Add activity", "Calendar dates", "Export planner"])
+    for (const name of ["Add activity", "Export planner"])
       await expect(
         page.getByRole("button", { name, exact: true }),
       ).toBeInViewport();
+    const more = page.getByRole("button", {
+      name: "More planner actions",
+      exact: true,
+    });
+    await expect(
+      (await more.isVisible())
+        ? more
+        : page.getByRole("button", { name: "Calendar dates", exact: true }),
+    ).toBeInViewport();
   };
   await expectFits();
   await page
@@ -386,9 +388,7 @@ test("dated planners fit small screens and daily swipes cross into the next cale
     shiftDate(monday, 7),
   );
   await page.getByRole("button", { name: "Close dialog", exact: true }).click();
-  await page
-    .getByRole("button", { name: "Calendar dates", exact: true })
-    .click();
+  await clickPlannerAction(page, "Calendar dates");
   await expect(page.getByRole("dialog")).toBeInViewport();
   await expect(page.locator(".modal-backdrop")).toHaveCSS("opacity", "1");
   await page.screenshot({ path: ".sites-runtime/calendar-dialog-mobile.png" });

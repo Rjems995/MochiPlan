@@ -59,6 +59,7 @@ export function useScheduleEditor(
   const [deleteEntry, setDeleteEntry] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [sizeOpen, setSizeOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [sizeOverflow, setSizeOverflow] = useState(false);
   const [customHourHeight, setCustomHourHeight] = useState(HOUR_HEIGHT);
   const [pendingEdit, setPendingEdit] = useState<{
@@ -428,6 +429,8 @@ export function useScheduleEditor(
     setExportOpen,
     sizeOpen,
     setSizeOpen,
+    moreOpen,
+    setMoreOpen,
     sizeOverflow,
     selectedSticker,
     setSelectedSticker,

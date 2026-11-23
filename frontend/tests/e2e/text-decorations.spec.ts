@@ -1,3 +1,4 @@
+import { clickPlannerAction } from "./helpers/plannerToolbar";
 import { test, expect, type Page, type Locator } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import sharp from "sharp";
@@ -90,10 +91,10 @@ for (const viewport of [
     await expect(hex).toHaveValue("#AABBCC");
     await expect(layer).toHaveCSS("color", "rgb(170, 187, 204)");
     await expect(palette.getByRole("alert")).toHaveCount(0);
-    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    await clickPlannerAction(page, "Undo");
     await expect(layer).toHaveCSS("color", "rgb(82, 163, 139)");
     await expect(hex).toHaveValue("#52A38B");
-    await page.getByRole("button", { name: "Redo", exact: true }).click();
+    await clickPlannerAction(page, "Redo");
     await expect(layer).toHaveCSS("color", "rgb(170, 187, 204)");
     const saved = await backup(page);
     expect(
@@ -148,7 +149,7 @@ test("text can be styled, positioned, duplicated, undone and saved with the plan
   await layer.focus();
   await layer.press("ArrowRight");
   await expect(layer).toHaveAttribute("style", /left: 36%/);
-  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await clickPlannerAction(page, "Undo");
   await expect(layer).toHaveAttribute("style", /left: 35%/);
   const from = (await layer.boundingBox())!;
   await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);

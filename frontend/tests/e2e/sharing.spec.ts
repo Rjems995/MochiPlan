@@ -1,3 +1,4 @@
+import { clickPlannerAction } from "./helpers/plannerToolbar";
 import { test, expect, type Browser, type Page } from "@playwright/test";
 import { once } from "node:events";
 import { createApp } from "../../../backend/src/server.mjs";
@@ -51,9 +52,7 @@ async function sharing(page: Page) {
     .first()
     .click();
   await page.locator(".schedule-card-preview").first().click();
-  await page
-    .getByRole("button", { name: "Share planner", exact: true })
-    .click();
+  await clickPlannerAction(page, "Share planner");
   const dialog = page.getByRole("dialog", { name: "Share this planner" });
   await expect(dialog.getByText("Loading shared links…")).toHaveCount(0);
   return dialog;

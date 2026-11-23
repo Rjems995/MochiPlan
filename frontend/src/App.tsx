@@ -125,6 +125,7 @@ function WorkspaceApplication({
     studio.pendingEdit ||
     studio.calendarOpen ||
     studio.sizeOpen ||
+    studio.moreOpen ||
     planners.newModal ||
     planners.renameId ||
     planners.deleteId ||

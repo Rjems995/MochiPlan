@@ -1,3 +1,4 @@
+import { clickPlannerAction } from "./helpers/plannerToolbar";
 import { test, expect, type Locator, type Page } from "@playwright/test";
 import sharp from "sharp";
 import { readFile } from "node:fs/promises";
@@ -18,7 +19,7 @@ async function settleDialog(dialog: Locator) {
   });
 }
 async function openSize(page: Page) {
-  await page.getByRole("button", { name: "Planner size", exact: true }).click();
+  await clickPlannerAction(page, "Planner size");
   return page.getByRole("dialog", {
     name: "Choose your planner size",
     exact: true,
@@ -91,9 +92,9 @@ for (const viewport of [
         () => document.documentElement.scrollHeight <= innerHeight + 1,
       ),
     ).toBe(true);
-    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    await clickPlannerAction(page, "Undo");
     await expect(paper(page)).not.toHaveAttribute("data-canvas-width", "1200");
-    await page.getByRole("button", { name: "Redo", exact: true }).click();
+    await clickPlannerAction(page, "Redo");
     await expect(paper(page)).toHaveAttribute("data-canvas-width", "1200");
     await page.evaluate(() => navigator.serviceWorker.ready);
     await page.reload();
