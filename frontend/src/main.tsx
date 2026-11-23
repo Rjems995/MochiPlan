@@ -30,6 +30,7 @@ import "./background-image.css";
 import "./planner-size.css";
 import "./studio-toolbar.css";
 import "./activity-form.css";
+import "./planner-zoom.css";
 registerSW({
   immediate: true,
   onRegisteredSW(_url, registration) {

@@ -1,4 +1,5 @@
 import { DndContext, closestCenter } from "@dnd-kit/core";
+import { useLayoutEffect, useState } from "react";
 import { addDays, addMonths, addWeeks, format } from "date-fns";
 import {
   AlertTriangle,
@@ -16,6 +17,7 @@ import { DesignPanel } from "../components/DesignPanel";
 import { FitContent } from "../components/FitContent";
 import { ScheduleCanvas } from "../components/ScheduleCanvas";
 import { StudioToolbar } from "../components/StudioToolbar";
+import { PlannerZoomControls } from "../components/PlannerZoomControls";
 import { useAppContext } from "../context/AppContext";
 import { plannerLayout } from "../plannerSize";
 import { type View } from "../model";
@@ -58,6 +60,13 @@ export function StudioPage() {
     feedback: { notify },
     navigation: { navigate },
   } = useAppContext();
+  const [zoom, setZoom] = useState(1);
+  const [panMode, setPanMode] = useState(false);
+  const cameraKey = `${active.id}:${view}:${active.design.canvasSize?.width}:${active.design.canvasSize?.height}`;
+  useLayoutEffect(() => {
+    setZoom(1);
+    setPanMode(false);
+  }, [cameraKey]);
 
   return (
     <>
@@ -194,11 +203,15 @@ export function StudioPage() {
               </p>
             )}
             <FitContent
+              key={cameraKey}
               minWidth={view === "daily" ? 320 : view === "list" ? 640 : 720}
               maxWidth={view === "daily" ? 760 : 1600}
               onScaleChange={setCanvasScale}
               onSizeChange={handleCanvasSize}
               fixedWidth={plannerLayout(active.design.canvasSize, view)?.width}
+              zoom={zoom}
+              panMode={panMode}
+              interactiveViewport
             >
               <div
                 className={`canvas-inner ${active.design.canvasSize ? "custom-planner-size" : ""}`}
@@ -229,6 +242,15 @@ export function StudioPage() {
               <GripVertical size={12} />
               Drag to move · pull the bottom edge to resize
             </span>
+            <PlannerZoomControls
+              zoom={zoom}
+              panMode={panMode}
+              onZoom={(value) => {
+                setZoom(value);
+                if (value === 1) setPanMode(false);
+              }}
+              onPanMode={setPanMode}
+            />
             <span>
               {displayedEntries.length} activities <i />{" "}
               {Number(totalHours.toFixed(1))} hours of possibility

@@ -1,4 +1,6 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { viewportLayout } from "../viewportLayout";
+import { useViewportPan } from "../hooks/useViewportPan";
 
 /** Fit the whole design in its allotted space without changing its export layout. */
 export function FitContent({
@@ -9,6 +11,9 @@ export function FitContent({
   onScaleChange,
   onSizeChange,
   fixedWidth,
+  zoom = 1,
+  panMode = false,
+  interactiveViewport = false,
 }: {
   children: ReactNode;
   minWidth: number;
@@ -17,9 +22,22 @@ export function FitContent({
   onScaleChange?: (scale: number) => void;
   onSizeChange?: (size: { width: number; height: number }) => void;
   fixedWidth?: number;
+  zoom?: number;
+  panMode?: boolean;
+  interactiveViewport?: boolean;
 }) {
   const viewport = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
+  const camera = useViewportPan(
+    viewport,
+    content,
+    interactiveViewport && zoom > 1,
+    panMode,
+    zoom,
+  );
+  const current = useRef({ zoom, pan: camera.pan });
+  current.current = { zoom, pan: camera.pan };
+  const measureRef = useRef(() => {});
   const [layout, setLayout] = useState({
     width: minWidth,
     scale: 1,
@@ -37,19 +55,19 @@ export function FitContent({
         fixedWidth ?? Math.max(minWidth, Math.min(maxWidth, frame.clientWidth));
       design.style.width = `${width}px`;
       const height = Math.max(1, design.offsetHeight);
-      const scale = Math.min(
-        1,
-        frame.clientWidth / width,
-        frame.clientHeight / height,
-      );
+      const position = viewportLayout({
+        width,
+        height,
+        frameWidth: frame.clientWidth,
+        frameHeight: frame.clientHeight,
+        align,
+        ...current.current,
+      });
       const next = {
         width,
-        scale,
-        x: Math.max(0, (frame.clientWidth - width * scale) / 2),
-        y:
-          align === "start"
-            ? 0
-            : Math.max(0, (frame.clientHeight - height * scale) / 2),
+        scale: position.scale,
+        x: position.x,
+        y: position.y,
       };
       setLayout((old) =>
         Object.keys(next).every(
@@ -61,9 +79,10 @@ export function FitContent({
           ? old
           : next,
       );
-      onScaleChange?.(scale);
+      onScaleChange?.(position.scale);
       onSizeChange?.({ width: frame.clientWidth, height: frame.clientHeight });
     };
+    measureRef.current = measure;
     const observer = new ResizeObserver(measure);
     observer.observe(frame);
     observer.observe(design);
@@ -74,8 +93,24 @@ export function FitContent({
       observer.disconnect();
     };
   }, [minWidth, maxWidth, align, onScaleChange, onSizeChange, fixedWidth]);
+  useLayoutEffect(
+    () => measureRef.current(),
+    [zoom, camera.pan.x, camera.pan.y],
+  );
   return (
-    <div className="fit-viewport" ref={viewport} data-scale={layout.scale}>
+    <div
+      className={`fit-viewport ${interactiveViewport ? "planner-viewport" : ""} ${camera.active ? "pan-active" : ""} ${camera.dragging ? "pan-dragging" : ""}`}
+      ref={viewport}
+      data-scale={layout.scale}
+      data-zoom={zoom}
+      data-pan-x={camera.pan.x}
+      data-pan-y={camera.pan.y}
+      role={interactiveViewport ? "region" : undefined}
+      aria-label={interactiveViewport ? "Planner canvas" : undefined}
+      tabIndex={interactiveViewport ? 0 : undefined}
+      style={{ touchAction: camera.active ? "none" : undefined }}
+      {...camera.handlers}
+    >
       <div
         className="fit-content"
         ref={content}
