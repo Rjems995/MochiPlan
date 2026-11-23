@@ -343,7 +343,11 @@ export function useScheduleEditor(
         : "Only this occurrence has been cancelled.",
     );
   }
-  function saveEntries(entries: Entry[], selection?: EditSelection) {
+  function saveEntries(
+    entries: Entry[],
+    selection?: EditSelection,
+    addAnother = false,
+  ) {
     if (!editor) return;
 
     updateSchedule((s) => ({
@@ -378,12 +382,14 @@ export function useScheduleEditor(
       setWeek(parseISO(date));
       setDay(entries[0].day);
     }
-    setEditor(null);
-    notify(
-      editor.entry
-        ? "Your little changes are saved."
-        : "A little plan added to your week.",
-    );
+    if (!addAnother || editor.entry) {
+      setEditor(null);
+      notify(
+        editor.entry
+          ? "Your little changes are saved."
+          : "A little plan added to your week.",
+      );
+    }
   }
   function duplicateEntry(e: Entry) {
     updateSchedule((s) => ({

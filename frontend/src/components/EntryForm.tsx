@@ -1,10 +1,11 @@
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import {
   Copy,
   Trash2,
   AlertTriangle,
   Check,
   ChevronDown,
+  ListPlus,
   Plus,
 } from "lucide-react";
 import {
@@ -52,7 +53,11 @@ export function EntryForm({
   entry: Entry | null;
   initialDay?: number;
   initialStart?: number;
-  onSave: (entries: Entry[], selection?: EditSelection) => void;
+  onSave: (
+    entries: Entry[],
+    selection?: EditSelection,
+    addAnother?: boolean,
+  ) => void;
   onDelete: (id: string) => void;
   onDuplicate: (e: Entry) => void;
   onClose: () => void;
@@ -62,6 +67,8 @@ export function EntryForm({
   initialOnce?: boolean;
 }) {
   const [title, setTitle] = useState(entry?.title || "");
+  const titleInput = useRef<HTMLInputElement>(null);
+  const [addedCount, setAddedCount] = useState(0);
   const [days, setDays] = useState([entry?.day ?? initialDay]);
   const [start, setStart] = useState(timeValue(entry?.start ?? initialStart));
   const [end, setEnd] = useState(
@@ -202,6 +209,10 @@ export function EntryForm({
             setError("The end time needs to be after the start time.");
             return;
           }
+          const addAnother =
+            !entry &&
+            (ev.nativeEvent as SubmitEvent).submitter?.getAttribute("value") ===
+              "add-another";
           onSave(
             candidates.map((c) => ({
               ...c,
@@ -209,12 +220,34 @@ export function EntryForm({
               title: title.trim(),
             })),
             recurring ? { scope, occurrenceDate } : undefined,
+            addAnother,
           );
+          if (addAnother) {
+            setAddedCount((count) => count + 1);
+            setTitle("");
+            setLocation("");
+            setInstructor("");
+            setNotes("");
+            setDetailsOpen(false);
+            setError("");
+            titleInput.current?.focus({ preventScroll: true });
+            const dialog = titleInput.current?.closest('[role="dialog"]');
+            if (dialog) dialog.scrollTop = 0;
+          }
         }}
       >
+        {addedCount > 0 && (
+          <p className="activity-added-status" role="status">
+            <Check size={16} aria-hidden="true" />
+            {addedCount === 1
+              ? "Activity added."
+              : `${addedCount} activities added.`}
+          </p>
+        )}
         <label className="field-label">
           What’s the plan?
           <input
+            ref={titleInput}
             required
             maxLength={100}
             value={title}
@@ -487,12 +520,22 @@ export function EntryForm({
             className="button secondary push-right"
             onClick={onClose}
           >
-            Cancel
+            {addedCount > 0 && !title.trim() ? "Done" : "Cancel"}
           </button>
           <button type="submit" className="button primary">
             {entry ? <Check size={16} /> : <Plus size={16} />}{" "}
             {entry ? "Save changes" : "Add activity"}
           </button>
+          {!entry && (
+            <button
+              type="submit"
+              name="saveAction"
+              value="add-another"
+              className="button secondary save-add-another"
+            >
+              <ListPlus size={16} /> Save and add another
+            </button>
+          )}
         </div>
       </form>
     </Modal>

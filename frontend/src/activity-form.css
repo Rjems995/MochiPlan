@@ -76,6 +76,33 @@
   font-size: 14px;
   min-height: 44px;
 }
+.activity-added-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.activity-form .modal-actions:has(.save-add-another) {
+  position: sticky;
+  bottom: -27px;
+  z-index: 2;
+  background: var(--surface);
+  padding-bottom: 27px;
+  margin-bottom: -27px;
+}
+@media (max-width: 640px) {
+  .activity-form .save-add-another {
+    flex-basis: 100%;
+  }
+  .activity-form .modal-actions:has(.save-add-another) {
+    bottom: -23px;
+    padding-bottom: 23px;
+    margin-bottom: -23px;
+  }
+}
 @media (max-width: 480px) {
   .activity-details-content > .two-fields {
     grid-template-columns: minmax(0, 1fr);
