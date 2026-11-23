@@ -96,6 +96,11 @@ export function sharedSnapshot(body) {
       "x",
       "y",
     ]);
+  if (source.design.canvasSize)
+    schedule.design.canvasSize = pick(source.design.canvasSize, [
+      "width",
+      "height",
+    ]);
   if (source.design.textBoxes !== undefined)
     schedule.design.textBoxes = source.design.textBoxes.map((box) =>
       pick(box, [

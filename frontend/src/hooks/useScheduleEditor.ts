@@ -58,6 +58,9 @@ export function useScheduleEditor(
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [deleteEntry, setDeleteEntry] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
+  const [sizeOpen, setSizeOpen] = useState(false);
+  const [sizeOverflow, setSizeOverflow] = useState(false);
+  const [customHourHeight, setCustomHourHeight] = useState(HOUR_HEIGHT);
   const [pendingEdit, setPendingEdit] = useState<{
     entry: Entry;
     edited: Entry;
@@ -216,8 +219,9 @@ export function useScheduleEditor(
       active?.design.startHour ?? 8,
       ...displayedEntries.map((e) => Math.floor(e.start / 60)),
     );
-  const canvasHourHeight =
-    (view === "weekly" || view === "daily") && canvasFrame.height > 0
+  const canvasHourHeight = active?.design.canvasSize
+    ? customHourHeight
+    : (view === "weekly" || view === "daily") && canvasFrame.height > 0
       ? Math.max(
           36,
           Math.min(
@@ -281,6 +285,8 @@ export function useScheduleEditor(
             setSelectedSticker(id);
             setSelectedTextBox(null);
           },
+          onHourHeightChange: setCustomHourHeight,
+          onSizeOverflowChange: setSizeOverflow,
           selectedTextBox,
           onSelectTextBox: selectTextBox,
           onTextBox: (id: string, patch: Partial<TextBox>) =>
@@ -420,6 +426,9 @@ export function useScheduleEditor(
     setDeleteEntry,
     exportOpen,
     setExportOpen,
+    sizeOpen,
+    setSizeOpen,
+    sizeOverflow,
     selectedSticker,
     setSelectedSticker,
     selectedTextBox,

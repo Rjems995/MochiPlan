@@ -1,0 +1,116 @@
+.custom-planner-size {
+  min-width: 0 !important;
+  width: 100%;
+}
+.custom-size-paper {
+  display: flex;
+  flex-direction: column;
+}
+.custom-size-paper > .paper-heading,
+.custom-size-paper > .timetable-heading,
+.custom-size-paper > .timetable,
+.custom-size-paper > .paper-footer,
+.custom-size-paper > .daily-nav {
+  flex-shrink: 0;
+}
+.custom-size-paper > .month-grid,
+.custom-size-paper > .schedule-list {
+  flex: 1;
+}
+.custom-size-paper .month-cell > button {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.toolbar-actions .planner-size-button {
+  font-size: 12px;
+  min-width: 30px;
+}
+.canvas-workspace .canvas-scroller {
+  position: relative;
+}
+.planner-size-warning {
+  position: absolute;
+  z-index: 9;
+  top: 2px;
+  left: 4px;
+  right: 4px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.planner-size-warning button {
+  color: var(--pink);
+  text-decoration: underline;
+  font-weight: 600;
+}
+.modal:has(.planner-size-layout) .modal-heading .eyebrow {
+  display: none;
+}
+.modal:has(.planner-size-layout) .modal-heading p {
+  font-size: 16px;
+  line-height: 1.6;
+}
+.planner-size-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 250px;
+  gap: 24px;
+}
+.planner-size-preview {
+  min-width: 0;
+  height: 340px;
+  background: var(--page);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+}
+.planner-size-options .field-label,
+.planner-size-options .field-label > select,
+.planner-size-options .field-label > input,
+.planner-size-options .button,
+.planner-size-actions .button {
+  font-size: 14px;
+}
+.planner-size-options .two-fields {
+  gap: 10px;
+}
+.planner-size-options .two-fields > .field-label {
+  min-width: 0;
+}
+.planner-size-options .field-label > input {
+  width: 100%;
+  min-width: 0;
+}
+.planner-size-options .button,
+.planner-size-actions .button {
+  min-height: 44px;
+}
+.planner-size-help {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+  margin: 15px 0;
+}
+@media (max-width: 700px) {
+  .planner-size-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+  .planner-size-preview {
+    height: 240px;
+  }
+}
+@media (max-width: 640px) {
+  .toolbar-actions .planner-size-button {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    flex-shrink: 0;
+  }
+  .planner-size-button > span {
+    display: none;
+  }
+}

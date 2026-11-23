@@ -61,6 +61,7 @@ export type Design = {
   textBoxes?: TextBox[];
   image: string;
   imageAdjustment?: BackgroundImageAdjustment;
+  canvasSize?: CanvasSize;
   startHour: number;
   endHour: number;
   weekends: boolean;
@@ -74,6 +75,7 @@ export type BackgroundImageAdjustment = {
   x: number;
   y: number;
 };
+export type CanvasSize = { width: number; height: number };
 export type Schedule = {
   id: string;
   name: string;

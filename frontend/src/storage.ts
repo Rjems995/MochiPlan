@@ -5,6 +5,7 @@ import { isCalendarDate, weekdayForDate } from "./calendar.ts";
 import { validTaskExtensions } from "./taskRules.ts";
 import { validTextBoxes } from "./textDecorations.ts";
 import { validImageAdjustment } from "./backgroundImage.ts";
+import { validCanvasSize } from "./plannerSize.ts";
 import { activeProfile, workspaceRecord } from "./services/deviceScope.ts";
 export type SyncCheckpoint = {
   id: string;
@@ -217,6 +218,8 @@ export function validateBackup(value: unknown): AppData {
       throw Error("A planner in the backup is invalid.");
     ids.add(s.id as string);
     const design = s.design as Record<string, unknown>;
+    if (!validCanvasSize(design.canvasSize))
+      throw Error("The planner dimensions in the backup are invalid.");
     if (!validImageAdjustment(design.imageAdjustment))
       throw Error(
         "The background photo adjustments in the backup are invalid.",

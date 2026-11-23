@@ -8,6 +8,7 @@ export function FitContent({
   align = "center",
   onScaleChange,
   onSizeChange,
+  fixedWidth,
 }: {
   children: ReactNode;
   minWidth: number;
@@ -15,6 +16,7 @@ export function FitContent({
   align?: "start" | "center";
   onScaleChange?: (scale: number) => void;
   onSizeChange?: (size: { width: number; height: number }) => void;
+  fixedWidth?: number;
 }) {
   const viewport = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
@@ -31,7 +33,8 @@ export function FitContent({
     let disposed = false;
     const measure = () => {
       if (disposed || !frame.clientWidth || !frame.clientHeight) return;
-      const width = Math.max(minWidth, Math.min(maxWidth, frame.clientWidth));
+      const width =
+        fixedWidth ?? Math.max(minWidth, Math.min(maxWidth, frame.clientWidth));
       design.style.width = `${width}px`;
       const height = Math.max(1, design.offsetHeight);
       const scale = Math.min(
@@ -70,7 +73,7 @@ export function FitContent({
       disposed = true;
       observer.disconnect();
     };
-  }, [minWidth, maxWidth, align, onScaleChange, onSizeChange]);
+  }, [minWidth, maxWidth, align, onScaleChange, onSizeChange, fixedWidth]);
   return (
     <div className="fit-viewport" ref={viewport} data-scale={layout.scale}>
       <div

@@ -48,6 +48,10 @@ Use revision `0` to create a backup. GET includes its current revision; send tha
 
 Snapshot responses include `contentHash`, `updatedAt`, `source`, and a `summary` of planners, logical activities and tasks. History returns `{ version: 1, revision, latest, versions, retentionLimit }`; metadata does not contain workspace data. Restoring uses normal revision-checked writes, preserving current plans with `before-restore` and then writing the selected snapshot with `restore`. A failed or conflicting restore leaves local plans unchanged. Older database heads migrate into history as `legacy` versions with their original revisions and timestamps.
 
+## Planner dimensions
+
+Designs optionally contain `canvasSize: { width, height }`, with integer pixel values from 320–4096 and at most 16,000,000 pixels in total. Both validators reject invalid dimensions. Omitting the field retains automatic sizing for existing version 1 workspaces; no database migration is needed. Account sync and backups preserve dimensions, and shared snapshots allow only width and height. The client checks that the active calendar view fits before applying or exporting a fixed size.
+
 ## Background photo framing
 
 Planner designs optionally include `imageAdjustment: { fit, zoom, x, y }`. Fit is `cover` or `contain`, zoom is 100–300%, and x/y are 0–100% alignment positions. Client and server validators reject invalid values. Existing version 1 workspaces remain valid without the field and preserve their original top-left framing. Backups and account sync retain adjustments; shared snapshots include only these four allowed properties. The original uploaded image stays unchanged, and no database migration is needed.

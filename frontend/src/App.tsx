@@ -1,4 +1,4 @@
-import { ScheduleCanvas } from "./components/ScheduleCanvas";
+import { HOUR_HEIGHT, ScheduleCanvas } from "./components/ScheduleCanvas";
 import { useEffect } from "react";
 
 import { ActivityDialogs } from "./components/ActivityDialogs";
@@ -124,6 +124,7 @@ function WorkspaceApplication({
     studio.editor ||
     studio.pendingEdit ||
     studio.calendarOpen ||
+    studio.sizeOpen ||
     planners.newModal ||
     planners.renameId ||
     planners.deleteId ||
@@ -175,7 +176,25 @@ function WorkspaceApplication({
             <AccountDialogs />
             <FeedbackToast />
             <div className="print-only">
-              <ScheduleCanvas {...studio.canvasProps} interactive={false} />
+              <ScheduleCanvas
+                {...studio.canvasProps}
+                schedule={
+                  active.design.canvasSize
+                    ? {
+                        ...active,
+                        design: { ...active.design, canvasSize: undefined },
+                      }
+                    : active
+                }
+                hourHeight={
+                  active.design.canvasSize
+                    ? HOUR_HEIGHT
+                    : studio.canvasProps.hourHeight
+                }
+                onHourHeightChange={undefined}
+                onSizeOverflowChange={undefined}
+                interactive={false}
+              />
             </div>
           </>
         }

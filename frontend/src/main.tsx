@@ -27,6 +27,7 @@ import "./sync-review.css";
 import "./export.css";
 import "./text-decorations.css";
 import "./background-image.css";
+import "./planner-size.css";
 registerSW({
   immediate: true,
   onRegisteredSW(_url, registration) {

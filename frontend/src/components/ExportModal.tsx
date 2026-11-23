@@ -4,6 +4,7 @@ import { Modal } from "./Modal";
 import { ScheduleCanvas } from "./ScheduleCanvas";
 import type { Schedule, Preferences, View } from "../model";
 import { download } from "../storage";
+import { plannerLayout, plannerSizes } from "../plannerSize";
 import {
   exportHourHeight,
   exportLayoutWidth,
@@ -33,8 +34,18 @@ export function ExportModal({
   onClose: () => void;
   notify: (text: string) => void;
 }) {
+  const customSize = schedule.design.canvasSize;
+  const options = customSize
+    ? [
+        {
+          name: `Planner size · ${customSize.width} × ${customSize.height}`,
+          w: customSize.width,
+        },
+        ...sizes,
+      ]
+    : sizes;
   const [size, setSize] = useState(0);
-  const [width, setWidth] = useState(1920);
+  const [width, setWidth] = useState(customSize?.width || 1920);
   const [format, setFormat] = useState("png");
   const [preview, setPreview] = useState("");
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
@@ -43,6 +54,10 @@ export function ExportModal({
   const [ready, setReady] = useState(false);
   const content = useRef<HTMLDivElement>(null);
   const generation = useRef(0);
+  useEffect(() => {
+    setSize(0);
+    setWidth(customSize?.width || 1920);
+  }, [customSize?.width, customSize?.height]);
   useEffect(() => {
     let cancelled = false;
     setReady(false);
@@ -56,14 +71,26 @@ export function ExportModal({
         const source =
           content.current?.querySelector<HTMLElement>(".schedule-paper");
         if (!source || cancelled) return;
+        const layout = plannerLayout(customSize, view);
+        if (
+          layout &&
+          parseFloat(getComputedStyle(source).height) > layout.height + 2
+        ) {
+          setError(
+            "This view needs a taller planner. Change Planner size before downloading.",
+          );
+          return;
+        }
         const outputSize = plannerImageSize(
-          source.offsetWidth,
-          source.offsetHeight,
+          customSize?.width || source.offsetWidth,
+          customSize?.height || source.offsetHeight,
           width,
         );
         const canvas = await toCanvas(source, {
           canvasWidth: outputSize.width,
           canvasHeight: outputSize.height,
+          width: layout?.width,
+          height: layout?.height,
           pixelRatio: 1,
           backgroundColor: schedule.design.background,
           cacheBust: false,
@@ -99,14 +126,27 @@ export function ExportModal({
       const filename = schedule.name.replace(/[^a-z0-9]/gi, "-").toLowerCase();
       if (format === "pdf") {
         const { jsPDF } = await import("jspdf");
+        const a4 = plannerSizes.some(
+          (preset) =>
+            preset.id.startsWith("a4-") &&
+            preset.width === customSize?.width &&
+            preset.height === customSize?.height,
+        );
         const pdf = new jsPDF({
           orientation:
             dimensions.width > dimensions.height ? "landscape" : "portrait",
-          unit: "px",
-          format: [dimensions.width, dimensions.height],
+          unit: a4 ? "mm" : "px",
+          format: a4 ? "a4" : [dimensions.width, dimensions.height],
           hotfixes: ["px_scaling"],
         });
-        pdf.addImage(preview, "PNG", 0, 0, dimensions.width, dimensions.height);
+        pdf.addImage(
+          preview,
+          "PNG",
+          0,
+          0,
+          pdf.internal.pageSize.getWidth(),
+          pdf.internal.pageSize.getHeight(),
+        );
         pdf.save(`${filename}.pdf`);
       } else download(preview, `${filename}.${format}`);
       notify("A lovely little plan, ready to keep.");
@@ -142,18 +182,18 @@ export function ExportModal({
               onChange={(ev) => {
                 const i = Number(ev.target.value);
                 setSize(i);
-                if (sizes[i].w !== width) setReady(false);
-                setWidth(sizes[i].w);
+                if (options[i].w !== width) setReady(false);
+                setWidth(options[i].w);
               }}
             >
-              {sizes.map((s, i) => (
+              {options.map((s, i) => (
                 <option value={i} key={s.name}>
                   {s.name}
                 </option>
               ))}
             </select>
           </label>
-          {size === sizes.length - 1 && (
+          {size === options.length - 1 && (
             <label className="field-label">
               Width
               <input
@@ -177,7 +217,11 @@ export function ExportModal({
             {ready
               ? `${dimensions.width} × ${dimensions.height} px`
               : "Preparing your image…"}
-            <span>Height follows your planner’s proportions.</span>
+            <span>
+              {customSize
+                ? "Uses your saved planner proportions."
+                : "Height follows your planner’s proportions."}
+            </span>
           </p>
           <fieldset className="field-label">
             <legend>File format</legend>
@@ -234,7 +278,13 @@ export function ExportModal({
         </div>
       </div>
       <div className="export-render" aria-hidden="true">
-        <div ref={content} style={{ width: exportLayoutWidth(view) }}>
+        <div
+          ref={content}
+          style={{
+            width:
+              plannerLayout(customSize, view)?.width || exportLayoutWidth(view),
+          }}
+        >
           <ScheduleCanvas
             hourHeight={exportHourHeight}
             schedule={schedule}

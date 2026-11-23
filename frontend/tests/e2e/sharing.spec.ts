@@ -100,7 +100,9 @@ test("shared snapshots are private by default, read-only, update explicitly, and
     recipient = await device(browser, api.base);
   try {
     await owner.page.goto("/");
-    await restore(owner.page);
+    const sizedPlanner = workspace();
+    sizedPlanner.schedules[0].design.canvasSize = { width: 1600, height: 1200 };
+    await restore(owner.page, sizedPlanner);
     const { dialog, url } = await createLink(owner.page);
     await recipient.page.goto("/");
     await settings(recipient.page);
@@ -120,6 +122,23 @@ test("shared snapshots are private by default, read-only, update explicitly, and
     await expect(recipient.page.locator(".shared-heading h1")).toHaveText(
       "Spring semester",
     );
+    await expect(recipient.page.locator(".schedule-paper")).toHaveAttribute(
+      "data-canvas-width",
+      "1600",
+    );
+    await expect
+      .poll(() =>
+        recipient.page
+          .locator(".schedule-paper")
+          .evaluate((element) =>
+            Math.abs(
+              element.getBoundingClientRect().width /
+                element.getBoundingClientRect().height -
+                1600 / 1200,
+            ),
+          ),
+      )
+      .toBeLessThan(0.005);
     await expect(recipient.page.locator(".schedule-block")).toContainText(
       "Design principles",
     );

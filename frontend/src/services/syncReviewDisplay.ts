@@ -49,6 +49,8 @@ const names: Record<string, string> = {
   grid: "Grid lines",
   image: "Background image",
   imageAdjustment: "Background photo framing",
+  canvasSize: "Planner size",
+  height: "Height",
   fit: "Photo fit",
   zoom: "Photo zoom",
   weekends: "Weekends",

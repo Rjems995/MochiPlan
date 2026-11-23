@@ -5,6 +5,7 @@ import { EntryForm } from "./EntryForm";
 import { ExportModal } from "./ExportModal";
 import { Modal } from "./Modal";
 import { ScopeChangeDialog } from "./ScopeChangeDialog";
+import { PlannerSizeDialog } from "./PlannerSizeDialog";
 export function ActivityDialogs() {
   const {
     active,
@@ -26,12 +27,15 @@ export function ActivityDialogs() {
       exportOpen,
       day,
       setExportOpen,
+      sizeOpen,
+      setSizeOpen,
       pendingEdit,
     },
     feedback: { notify },
   } = useAppContext();
   return (
     <>
+      {sizeOpen && <PlannerSizeDialog onClose={() => setSizeOpen(false)} />}
       {pendingEdit && <ScopeChangeDialog />}
       {calendarOpen && (
         <CalendarDialog

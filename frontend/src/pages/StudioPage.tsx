@@ -17,6 +17,7 @@ import {
   Pencil,
   Plus,
   Redo2,
+  Ruler,
   Share2,
   Undo2,
   X,
@@ -26,6 +27,7 @@ import { DesignPanel } from "../components/DesignPanel";
 import { FitContent } from "../components/FitContent";
 import { ScheduleCanvas } from "../components/ScheduleCanvas";
 import { useAppContext } from "../context/AppContext";
+import { plannerLayout } from "../plannerSize";
 import { type View } from "../model";
 export function StudioPage() {
   const {
@@ -35,6 +37,8 @@ export function StudioPage() {
     studio: {
       chooseSchedule,
       setCalendarOpen,
+      setSizeOpen,
+      sizeOverflow,
       focusMode,
       setFocusMode,
       setTools,
@@ -130,6 +134,19 @@ export function StudioPage() {
             }}
           >
             {focusMode ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+          </button>
+          <button
+            className="button secondary small planner-size-button"
+            aria-label="Planner size"
+            title={
+              active.design.canvasSize
+                ? `Planner size · ${active.design.canvasSize.width} × ${active.design.canvasSize.height} px`
+                : "Planner size · Automatic"
+            }
+            onClick={() => setSizeOpen(true)}
+          >
+            <Ruler size={16} />
+            <span>Size</span>
           </button>
           <div className="undo-controls">
             <button
@@ -300,13 +317,23 @@ export function StudioPage() {
             </button>
           </div>
           <div className="canvas-scroller">
+            {active.design.canvasSize && sizeOverflow && (
+              <p className="planner-size-warning" role="status">
+                This view needs a taller planner.{" "}
+                <button onClick={() => setSizeOpen(true)}>Adjust size</button>
+              </p>
+            )}
             <FitContent
               minWidth={view === "daily" ? 320 : view === "list" ? 640 : 720}
               maxWidth={view === "daily" ? 760 : 1600}
               onScaleChange={setCanvasScale}
               onSizeChange={handleCanvasSize}
+              fixedWidth={plannerLayout(active.design.canvasSize, view)?.width}
             >
-              <div className="canvas-inner" ref={canvasRef}>
+              <div
+                className={`canvas-inner ${active.design.canvasSize ? "custom-planner-size" : ""}`}
+                ref={canvasRef}
+              >
                 <DndContext
                   sensors={sensors}
                   collisionDetection={closestCenter}

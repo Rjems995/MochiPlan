@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { ScheduleCanvas } from "../components/ScheduleCanvas";
 import { FitContent } from "../components/FitContent";
+import { plannerLayout } from "../plannerSize";
 import { Mochi } from "../components/Artwork";
 import { dateKey, initialCalendarDate, weekdayForDate } from "../calendar";
 import type { Preferences, View } from "../model";
@@ -306,6 +307,9 @@ export default function SharedPlannerPage() {
             <FitContent
               minWidth={view === "weekly" || view === "monthly" ? 1000 : 340}
               maxWidth={1600}
+              fixedWidth={
+                plannerLayout(planner.schedule.design.canvasSize, view)?.width
+              }
             >
               <ScheduleCanvas
                 schedule={planner.schedule}

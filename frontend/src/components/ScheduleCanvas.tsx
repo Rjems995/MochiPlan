@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, type CSSProperties } from "react";
+import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { startOfMonth, format, isSameDay, parseISO } from "date-fns";
 import { MapPin, Plus, GripVertical, AlertCircle } from "lucide-react";
@@ -20,6 +20,7 @@ import { illustrationFor } from "../illustrations";
 import { readableColor } from "../contrast";
 import { DecorativeText } from "./DecorativeText";
 import { PlannerBackgroundPhoto } from "./PlannerBackgroundPhoto";
+import { plannerLayout } from "../plannerSize";
 import {
   dateKey,
   dateForWeekday,
@@ -51,6 +52,8 @@ type Props = {
   displayScale?: number;
   hourHeight?: number;
   onChromeChange?: (height: number) => void;
+  onHourHeightChange?: (height: number) => void;
+  onSizeOverflowChange?: (overflow: boolean) => void;
   selectedTextBox?: string | null;
   onTextBox?: (id: string, patch: Partial<TextBox>) => void;
   onSelectTextBox?: (id: string | null) => void;
@@ -371,8 +374,10 @@ export function ScheduleCanvas({
   onSelectSticker,
   interactive = true,
   displayScale = 1,
-  hourHeight = HOUR_HEIGHT,
+  hourHeight: availableHourHeight = HOUR_HEIGHT,
   onChromeChange,
+  onHourHeightChange,
+  onSizeOverflowChange,
   selectedTextBox,
   onTextBox,
   onSelectTextBox,
@@ -380,28 +385,70 @@ export function ScheduleCanvas({
   onDeleteTextBox,
 }: Props) {
   const paperRef = useRef<HTMLDivElement>(null);
+  const custom = plannerLayout(schedule.design.canvasSize, view);
+  const [customChrome, setCustomChrome] = useState(128);
+  const [sizeOverflow, setSizeOverflow] = useState(false);
   useLayoutEffect(() => {
     const paper = paperRef.current;
     const grid = paper?.querySelector<HTMLElement>(".timetable");
-    if (!paper || !grid || !onChromeChange) return;
+    if (!paper || (!custom && !onChromeChange && !onSizeOverflowChange)) return;
     let active = true;
     const measure = () => {
-      if (!active) return;
-      const chrome =
-        parseFloat(getComputedStyle(paper).height) -
-        parseFloat(getComputedStyle(grid).height);
-      if (chrome > 0) onChromeChange(chrome);
+      if (!active || !paper.offsetWidth) return;
+      const style = getComputedStyle(paper);
+      if (grid) {
+        const number = (value: string) => parseFloat(value) || 0;
+        const chrome = custom
+          ? number(style.paddingTop) +
+            number(style.paddingBottom) +
+            number(style.borderTopWidth) +
+            number(style.borderBottomWidth) +
+            Array.from(
+              paper.querySelectorAll<HTMLElement>(
+                ":scope > .paper-heading, :scope > .timetable-heading, :scope > .paper-footer, :scope > .daily-nav",
+              ),
+            ).reduce((sum, child) => {
+              const css = getComputedStyle(child);
+              return (
+                sum +
+                number(css.height) +
+                number(css.marginTop) +
+                number(css.marginBottom)
+              );
+            }, 0)
+          : parseFloat(style.height) -
+            parseFloat(getComputedStyle(grid).height);
+        if (chrome > 0) {
+          if (custom)
+            setCustomChrome((previous) =>
+              Math.abs(previous - chrome) > 0.2 ? chrome : previous,
+            );
+          onChromeChange?.(chrome);
+        }
+      }
+      const overflow = !!custom && parseFloat(style.height) > custom.height + 2;
+      setSizeOverflow((previous) =>
+        previous === overflow ? previous : overflow,
+      );
+      onSizeOverflowChange?.(overflow);
     };
     const observer = new ResizeObserver(measure);
     observer.observe(paper);
-    observer.observe(grid);
+    for (const child of Array.from(paper.children)) observer.observe(child);
     document.fonts.ready.then(measure);
     measure();
     return () => {
       active = false;
       observer.disconnect();
     };
-  }, [view, onChromeChange]);
+  }, [
+    view,
+    onChromeChange,
+    onSizeOverflowChange,
+    custom?.width,
+    custom?.height,
+    interactive,
+  ]);
   const d = schedule.design;
   const renderedDates = viewDates(week, view, day, preferences.weekStart);
   const visibleEntries = renderedDates.flatMap((date) =>
@@ -419,6 +466,13 @@ export function ScheduleCanvas({
     d.endHour,
     ...visibleEntries.map((e) => Math.ceil(e.end / 60)),
   );
+  const hourHeight =
+    custom && (view === "weekly" || view === "daily")
+      ? Math.max(24, (custom.height - customChrome) / (max - min))
+      : availableHourHeight;
+  useLayoutEffect(() => {
+    if (interactive) onHourHeightChange?.(hourHeight);
+  }, [interactive, onHourHeightChange, hourHeight]);
   const ordered =
     preferences.weekStart === "sunday"
       ? [6, 0, 1, 2, 3, 4, 5]
@@ -480,7 +534,12 @@ export function ScheduleCanvas({
   }
   const midnight = d.theme === "midnight";
   const style = {
-    minHeight: view === "weekly" || view === "daily" ? 0 : undefined,
+    minHeight: custom
+      ? "min-content"
+      : view === "weekly" || view === "daily"
+        ? 0
+        : undefined,
+    height: custom?.height,
     backgroundColor: d.background,
     color: readableColor(d.background),
     "--paper-ink": readableColor(d.background),
@@ -515,9 +574,12 @@ export function ScheduleCanvas({
   return (
     <div
       ref={paperRef}
-      className={`schedule-paper ${midnight ? "night-paper" : ""} ${d.grid ? "show-grid" : ""} view-${view}`}
+      className={`schedule-paper ${custom ? "custom-size-paper" : ""} ${midnight ? "night-paper" : ""} ${d.grid ? "show-grid" : ""} view-${view}`}
       style={style}
       data-hour-height={hourHeight}
+      data-size-overflow={sizeOverflow}
+      data-canvas-width={d.canvasSize?.width}
+      data-canvas-height={d.canvasSize?.height}
       onTouchStart={(ev) => {
         if (view === "daily") touch.current = ev.touches[0].clientX;
       }}
@@ -724,7 +786,16 @@ export function ScheduleCanvas({
         </div>
       )}
       {view === "monthly" && (
-        <div className="month-grid">
+        <div
+          className="month-grid"
+          style={
+            custom
+              ? {
+                  gridTemplateRows: `auto repeat(${monthDays.length / 7}, minmax(min-content, 1fr))`,
+                }
+              : undefined
+          }
+        >
           {ordered.map((v) => (
             <div className="month-label" key={v}>
               {dayNames[v].slice(0, 3)}
