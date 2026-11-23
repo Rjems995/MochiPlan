@@ -4,6 +4,8 @@ This is the **frontend** workspace. The project root contains the [combined fron
 
 A cozy schedule planner and design studio built with React, TypeScript, Vite, Tailwind CSS, Lucide, Motion, dnd-kit, Dexie, html-to-image, jsPDF, and vite-plugin-pwa.
 
+See the [website screenshots](../README.md#screenshots) for the desktop studio, mobile planner, text styling and custom planner sizes.
+
 ## Run locally
 
 Use Node.js 24 LTS and npm. Chrome is used by the browser test configuration.

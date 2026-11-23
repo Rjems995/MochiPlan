@@ -1,17 +1,71 @@
 # MochiPlan
 
+MochiPlan is a cute, customizable schedule planner and installable PWA. Design your calendar with pastel themes, illustrated stickers, pretty fonts and photo backgrounds, then download your planner as a PNG, JPG or PDF. Editing works offline, with optional accounts for syncing across devices.
+
+[Run locally](#install-and-run) · [Features](#features) · [Screenshots](#screenshots) · [Frontend guide](./frontend/README.md) · [Backend guide](./backend/README.md)
+
+## Features
+
+- **Flexible calendars:** week, day, month and list views; semester dates, holidays, one-off exams and cancelled classes. Edit one occurrence, future dates or an entire series.
+- **A design studio:** eight built-in palettes, custom colors, illustrated stickers, decorative text with font and color controls, and adjustable photo backgrounds.
+- **Custom planner sizes:** Desktop, Tablet, Phone, Square, A4 and custom pixel dimensions, with a live preview and orientation swap. Downloads use your saved proportions.
+- **Clean exports:** PNG, JPG and PDF downloads of your designed calendar, with standard A4 PDF pages for A4 presets.
+- **Tasks and reminders:** subtasks, recurring tasks, deadline alerts and optional server-scheduled push notifications.
+- **Offline editing and sync:** automatic local saving, Undo/Redo, optional accounts, cross-device sync and individual conflict review.
+- **Backups and sharing:** automatic server backup history and read-only planner links with optional passwords and expiration dates.
+
+## Screenshots
+
+Screenshots show sample schedules in the current interface. Select an image to view it at full size.
+
+### Desktop design studio
+
+Edit a weekly calendar while choosing themes, stickers, text and layout settings.
+
+![MochiPlan desktop design studio with a pastel weekly calendar and theme controls](./docs/screenshots/editor-desktop.png)
+
+<details>
+<summary>Mobile daily planner</summary>
+
+The phone layout opens a daily calendar with touch navigation and design tools available from the toolbar.
+
+<a href="./docs/screenshots/editor-mobile.png"><img src="./docs/screenshots/editor-mobile.png" alt="MochiPlan mobile daily planner with class activities and bottom navigation" width="320"></a>
+
+</details>
+
+<details>
+<summary>Decorative text and color controls</summary>
+
+Add your own words, choose a font and color, and drag the text into position on your calendar.
+
+![Text customization panel with font choices, color swatches and handwritten text on the calendar](./docs/screenshots/text-customization.png)
+
+</details>
+
+<details>
+<summary>Custom planner dimensions</summary>
+
+Preview a preset or enter a custom width and height before applying the size to your planner and downloads.
+
+![Planner size dialog with a live calendar preview, custom width and height, and orientation swap](./docs/screenshots/planner-size.png)
+
+</details>
+
+## Project structure
+
 The project has two application folders:
 
 ```text
 MochiPlan/
 ├── frontend/       React + TypeScript PWA, editor, exports and offline storage
 ├── backend/        Node.js API and persistent SQLite server backups
+├── docs/           Website screenshots used in this README
 ├── dev.mjs         Starts both parts or the combined production server
 ├── package.json    Commands for the whole project
 └── package-lock.json
 ```
 
-Use Node.js 24 or newer. Run commands from `C:\Users\robin\MochiPlan`.
+Use Node.js 24 or newer. Run commands from the repository root (the folder containing this README).
 
 ## Install and run
 
