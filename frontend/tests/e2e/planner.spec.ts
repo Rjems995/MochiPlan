@@ -38,6 +38,9 @@ test("create, edit, overlap, undo, duplicate and persist planners", async ({
   }
   await page.locator("input[type=time]").nth(0).fill("09:00");
   await page.locator("input[type=time]").nth(1).fill("10:30");
+  await modal
+    .getByRole("button", { name: "More details", exact: true })
+    .click();
   await page.getByPlaceholder("Studio 204").fill("Room 42");
   await page
     .getByRole("dialog")

@@ -28,6 +28,7 @@ PWA installation and service workers require HTTPS or localhost. Offline functio
 
 - Multiple planners with eight schedule types, renaming, duplication, deletion confirmation, and undo/redo.
 - Timed activities with multiple days, location, instructor, notes, custom colors, duplication, and deletion confirmation.
+- Activity forms start with the name, day or date, and times. **More details** expands the optional location, instructor and notes, with a count when details are present. Closing the section keeps entered values; saving with it closed preserves existing details. Recurring edit scope and color controls remain available below the main fields.
 - Semester start/end dates, one-off exams and events, holiday ranges, and cancellation/restoration of individual occurrences.
 - Mouse, touch, and keyboard dragging. Movement snaps to 15 minutes. Pull a block’s bottom edge or use its keyboard-accessible resize handle to adjust its duration.
 - Overlap warnings and side-by-side lanes for simultaneous activities. The displayed time range expands to include activities outside the selected range.

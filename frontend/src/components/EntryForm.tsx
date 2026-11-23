@@ -1,5 +1,12 @@
-import { useState } from "react";
-import { Copy, Trash2, AlertTriangle, Check, Plus } from "lucide-react";
+import { useId, useState } from "react";
+import {
+  Copy,
+  Trash2,
+  AlertTriangle,
+  Check,
+  ChevronDown,
+  Plus,
+} from "lucide-react";
 import {
   type Entry,
   type Schedule,
@@ -63,6 +70,11 @@ export function EntryForm({
   const [location, setLocation] = useState(entry?.location || "");
   const [instructor, setInstructor] = useState(entry?.instructor || "");
   const [notes, setNotes] = useState(entry?.notes || "");
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const detailsId = useId();
+  const detailCount = [location, instructor, notes].filter((value) =>
+    value.trim(),
+  ).length;
   const [color, setColor] = useState(entry?.color || themes[0].palette[0]);
   const [error, setError] = useState("");
   const occurrenceDate =
@@ -167,6 +179,7 @@ export function EntryForm({
       onClose={onClose}
     >
       <form
+        className="activity-form"
         onSubmit={(ev) => {
           ev.preventDefault();
           if (!title.trim()) {
@@ -199,13 +212,6 @@ export function EntryForm({
           );
         }}
       >
-        {recurring && (
-          <EditScopeControl
-            value={scope}
-            date={originalOccurrence(schedule, entry!, occurrenceDate)}
-            onChange={changeScope}
-          />
-        )}
         <label className="field-label">
           What’s the plan?
           <input
@@ -281,7 +287,7 @@ export function EntryForm({
               breaks.
             </p>
           )}
-        <div className="two-fields">
+        <div className="two-fields activity-time-fields">
           <label className="field-label">
             Starts at
             <input
@@ -303,33 +309,70 @@ export function EntryForm({
             />
           </label>
         </div>
-        <div className="two-fields">
-          <label className="field-label">
-            Room or location
-            <input
-              value={location}
-              onChange={(ev) => setLocation(ev.target.value)}
-              placeholder="Studio 204"
-            />
-          </label>
-          <label className="field-label">
-            Instructor
-            <input
-              value={instructor}
-              onChange={(ev) => setInstructor(ev.target.value)}
-              placeholder="Optional"
-            />
-          </label>
-        </div>
-        <label className="field-label">
-          Little notes
-          <textarea
-            value={notes}
-            onChange={(ev) => setNotes(ev.target.value)}
-            placeholder="Anything you’d like to remember…"
-            rows={2}
+        {recurring && (
+          <EditScopeControl
+            value={scope}
+            date={originalOccurrence(schedule, entry!, occurrenceDate)}
+            onChange={changeScope}
           />
-        </label>
+        )}
+        <div className="activity-details">
+          <button
+            type="button"
+            className="activity-details-toggle"
+            aria-label="More details"
+            aria-expanded={detailsOpen}
+            aria-controls={`${detailsId}-content`}
+            aria-describedby={`${detailsId}-status`}
+            onClick={() => setDetailsOpen(!detailsOpen)}
+          >
+            <span>More details</span>
+            <span
+              className="activity-details-status"
+              id={`${detailsId}-status`}
+            >
+              {detailCount
+                ? `${detailCount} ${detailCount === 1 ? "detail" : "details"} added`
+                : "Optional"}
+            </span>
+            <ChevronDown size={18} aria-hidden="true" />
+          </button>
+          <div
+            className="activity-details-content"
+            id={`${detailsId}-content`}
+            role="region"
+            aria-label="Activity details"
+            hidden={!detailsOpen}
+          >
+            <div className="two-fields">
+              <label className="field-label">
+                Room or location
+                <input
+                  value={location}
+                  onChange={(ev) => setLocation(ev.target.value)}
+                  placeholder="Studio 204"
+                />
+              </label>
+              <label className="field-label">
+                Instructor
+                <input
+                  value={instructor}
+                  onChange={(ev) => setInstructor(ev.target.value)}
+                  placeholder="Optional"
+                />
+              </label>
+            </div>
+            <label className="field-label">
+              Little notes
+              <textarea
+                value={notes}
+                onChange={(ev) => setNotes(ev.target.value)}
+                placeholder="Anything you’d like to remember…"
+                rows={2}
+              />
+            </label>
+          </div>
+        </div>
         <fieldset className="field-label">
           <legend>Pick a color</legend>
           <div className="color-palette">

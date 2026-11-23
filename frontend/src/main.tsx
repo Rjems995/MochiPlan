@@ -29,6 +29,7 @@ import "./text-decorations.css";
 import "./background-image.css";
 import "./planner-size.css";
 import "./studio-toolbar.css";
+import "./activity-form.css";
 registerSW({
   immediate: true,
   onRegisteredSW(_url, registration) {
